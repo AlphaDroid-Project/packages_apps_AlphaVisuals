@@ -16,6 +16,10 @@ android_app {
     privileged: true,
     system_ext_specific: true,
 
+    required: [
+        "privapp-permissions-axthemestore",
+    ],
+
     optimize: {
         enabled: true,
     },
@@ -55,4 +59,12 @@ android_app {
     ],
 
     kotlin_plugins: ["kotlin-parcelize-compiler-plugin"],
+}
+
+prebuilt_etc {
+    name: "privapp-permissions-axthemestore",
+    system_ext_specific: true,
+    src: "privapp-permissions-axthemestore.xml",
+    sub_dir: "permissions",
+    filename_from_src: true,
 }
