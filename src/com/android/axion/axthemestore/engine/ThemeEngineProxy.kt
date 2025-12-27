@@ -58,6 +58,14 @@ class ThemeEngineProxy(private val context: Context) {
             const val CYLINDER = "cylinder"
             const val HEXAGON = "hexagon"
         }
+
+        object ThemedIconStyle {
+            const val AXION = "axion"
+            const val AOSP = "aosp"
+        }
+
+        const val THEMED_ICON_STYLE_SETTING = "themed_icon_style"
+        const val THEMED_ICONS_ENABLED_SETTING = "themed_icons"
     }
     
     fun getThemeConfig(): ThemeEngineConfig {
@@ -416,6 +424,37 @@ class ThemeEngineProxy(private val context: Context) {
             iconThemeTargets = allTargets,
             categoryThemes = updatedCategoryThemes
         ))
+    }
+
+    fun setThemedIconStyle(style: String) {
+        Settings.Secure.putString(
+                context.contentResolver,
+                THEMED_ICON_STYLE_SETTING,
+                style
+            )
+    }
+
+    fun getThemedIconStyle(): String {
+        return Settings.Secure.getString(
+                context.contentResolver,
+                THEMED_ICON_STYLE_SETTING
+            ) ?: ThemedIconStyle.AXION
+    }
+
+    fun setThemedIconsEnabled(enabled: Boolean) {
+        Settings.Secure.putInt(
+                context.contentResolver,
+                THEMED_ICONS_ENABLED_SETTING,
+                if (enabled) 1 else 0
+            )
+    }
+
+    fun isThemedIconsEnabled(): Boolean {
+        return Settings.Secure.getInt(
+            context.contentResolver,
+            THEMED_ICONS_ENABLED_SETTING,
+            0
+        ) == 1
     }
 }
 

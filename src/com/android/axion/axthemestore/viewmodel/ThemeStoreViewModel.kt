@@ -75,6 +75,7 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
         loadUiStyle()
         loadIconPacks()
         loadIconShapes()
+        loadThemedIconStyle()
         refreshComponentStates()
         loadSearchHistory()
     }
@@ -761,6 +762,38 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
     }
+
+    fun loadThemedIconStyle() {
+        viewModelScope.launch {
+            val style = themeEngineProxy.getThemedIconStyle()
+            val enabled = themeEngineProxy.isThemedIconsEnabled()
+            _uiState.update { 
+                it.copy(
+                    themedIconStyle = style,
+                    themedIconsEnabled = enabled
+                ) 
+            }
+        }
+    }
+
+    fun setThemedIconStyle(style: String) {
+        viewModelScope.launch {
+            themeEngineProxy.setThemedIconStyle(style)
+            _uiState.update { it.copy(themedIconStyle = style) }
+        }
+    }
+
+    fun setThemedIconsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            themeEngineProxy.setThemedIconsEnabled(enabled)
+            _uiState.update { it.copy(themedIconsEnabled = enabled) }
+            
+            if (enabled) {
+                themeEngineProxy.setIconPack("")
+                _uiState.update { it.copy(currentIconPack = null) }
+            }
+        }
+    }
     
     private fun loadSearchHistory() {
         val historyJson = sharedPrefs.getString(KEY_SEARCH_HISTORY, null)
@@ -836,5 +869,7 @@ data class ThemeStoreUiState(
     val iconPacks: List<IconPack> = emptyList(),
     val iconShapes: List<IconShape> = emptyList(),
     val currentIconPack: String? = null,
-    val currentIconShape: String = ThemeEngineProxy.Companion.IconShape.SQUIRCLE
+    val currentIconShape: String = ThemeEngineProxy.Companion.IconShape.SQUIRCLE,
+    val themedIconStyle: String = ThemeEngineProxy.Companion.ThemedIconStyle.AXION,
+    val themedIconsEnabled: Boolean = false
 )
