@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 
 package com.android.axion.axthemestore.ui
 
@@ -41,7 +42,6 @@ import com.android.axion.axthemestore.ui.components.AppIconPackPreview
 import kotlin.math.cos
 import kotlin.math.sin
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IconPackListScreen(
     viewModel: ThemeStoreViewModel
@@ -151,8 +151,16 @@ private fun ThemedIconStyleSection(
             
             AnimatedVisibility(
                 visible = enabled,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+                enter = fadeIn(
+                    animationSpec = MaterialTheme.motionScheme.slowEffectsSpec()
+                ) + expandVertically(
+                    animationSpec = MaterialTheme.motionScheme.slowSpatialSpec()
+                ),
+                exit = fadeOut(
+                    animationSpec = MaterialTheme.motionScheme.slowEffectsSpec()
+                ) + shrinkVertically(
+                    animationSpec = MaterialTheme.motionScheme.slowSpatialSpec()
+                )
             ) {
                 Column {
                     Spacer(modifier = Modifier.height(20.dp))
