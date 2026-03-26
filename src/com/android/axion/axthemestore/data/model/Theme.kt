@@ -127,7 +127,6 @@ object StandardComponents {
     const val UI_QS = "ui_qs"
     const val UI_VOLUME = "ui_volume"
     
-    const val ICON_SHAPE = "icon_shape"
     const val ICON_PACK = "icon_pack"
 }
 
@@ -137,8 +136,3 @@ data class IconPack(
     val icon: Drawable? = null
 )
 
-data class IconShape(
-    val id: String,
-    val label: String,
-    val pathData: String
-)

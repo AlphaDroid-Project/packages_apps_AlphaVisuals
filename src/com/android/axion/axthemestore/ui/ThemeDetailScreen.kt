@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.android.axion.axthemestore.ui
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -26,14 +28,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Brush
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.axion.axthemestore.R
 import com.android.axion.axthemestore.data.model.Theme
 import com.android.axion.axthemestore.data.model.ThemeInstallState
 import com.android.axion.axthemestore.data.model.ThemeOverlay
@@ -51,9 +64,9 @@ fun ThemeDetailScreen(
     viewModel: ThemeStoreViewModel,
     onBackClick: () -> Unit
 ) {
-    val themeStates by viewModel.themeStates.collectAsState()
+    val themeStates by viewModel.themeStates.collectAsStateWithLifecycle()
     val installState = themeStates[theme.id] ?: ThemeInstallState.NotInstalled
-    val pendingChanges by viewModel.pendingComponentChanges.collectAsState()
+    val pendingChanges by viewModel.pendingComponentChanges.collectAsStateWithLifecycle()
     val hasPendingChanges = pendingChanges.containsKey(theme.id)
     
     Scaffold(
@@ -64,19 +77,19 @@ fun ThemeDetailScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
         },
         bottomBar = {
             Surface(
                 tonalElevation = 3.dp,
-                shadowElevation = 8.dp
+                shadowElevation = 1.dp
             ) {
                 Box(modifier = Modifier.padding(16.dp)) {
                     InstallSection(
@@ -104,91 +117,13 @@ fun ThemeDetailScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             val packageName = theme.overlays.firstOrNull()?.packageName
-            val hasRepoImages = theme.previewImages.isNotEmpty()
-            val isInstalled = installState is ThemeInstallState.Installed || 
-                              installState is ThemeInstallState.InstalledInactive
-            
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
             ) {
-                when {
-                    hasRepoImages -> {
-                        val totalPages = if (isInstalled && packageName != null) {
-                            theme.previewImages.size + 1
-                        } else {
-                            theme.previewImages.size
-                        }
-                        
-                        val pagerState = rememberPagerState(pageCount = { totalPages })
-                        
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.fillMaxSize()
-                        ) { page ->
-                            if (page < theme.previewImages.size) {
-                                AsyncNetworkImage(
-                                    url = theme.previewImages[page],
-                                    contentDescription = "Preview ${page + 1}",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                    errorContent = {
-                                        if (isInstalled && packageName != null) {
-                                            ThemePackagePreview(
-                                                packageName = packageName,
-                                                modifier = Modifier.fillMaxSize()
-                                            )
-                                        } else {
-                                            ImagePlaceholder(
-                                                modifier = Modifier.fillMaxSize()
-                                            )
-                                        }
-                                    }
-                                )
-                            } else {
-                                ThemePackagePreview(
-                                    packageName = packageName!!,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                        }
-                        
-                        if (totalPages > 1) {
-                            Row(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                repeat(totalPages) { index ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (pagerState.currentPage == index)
-                                                    MaterialTheme.colorScheme.primary
-                                                else
-                                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                                            )
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    isInstalled && packageName != null -> {
-                        ThemePackagePreview(
-                            packageName = packageName,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    else -> {
-                        ImagePlaceholder(
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
+                DetailPreviewBox(packageName = packageName ?: "")
             }
             
             Column(
@@ -224,9 +159,9 @@ fun ThemeDetailScreen(
                     val isInstalled = installState is ThemeInstallState.Installed || 
                                       installState is ThemeInstallState.InstalledInactive
                     
-                    val enabledComponents by viewModel.enabledComponents.collectAsState()
-                    val categoryThemes by viewModel.categoryThemesState.collectAsState()
-                    val pendingChanges by viewModel.pendingComponentChanges.collectAsState()
+                    val enabledComponents by viewModel.enabledComponents.collectAsStateWithLifecycle()
+                    val categoryThemes by viewModel.categoryThemesState.collectAsStateWithLifecycle()
+                    val pendingChanges by viewModel.pendingComponentChanges.collectAsStateWithLifecycle()
                     val hasPending = pendingChanges.containsKey(theme.id)
                     
                     if (overlay.targets.isNotEmpty()) {
@@ -236,13 +171,13 @@ fun ThemeDetailScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Components",
+                                text = stringResource(R.string.components),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Medium
                             )
                             if (hasPending) {
                                 Text(
-                                    text = "Pending changes",
+                                    text = stringResource(R.string.pending_changes),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -279,7 +214,7 @@ fun ThemeDetailScreen(
                     }
                 } else if (theme.overlays.isNotEmpty() && !theme.isUiStyle) {
                     Text(
-                        text = "Components",
+                        text = stringResource(R.string.components),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium
                     )
@@ -293,7 +228,7 @@ fun ThemeDetailScreen(
                 
                 if (theme.tags.isNotEmpty()) {
                     Text(
-                        text = "Tags",
+                        text = stringResource(R.string.tags),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium
                     )
@@ -339,7 +274,7 @@ private fun InfoChip(
 private fun TagChip(tag: String) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.secondaryContainer)
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
@@ -356,8 +291,8 @@ private fun ComponentOverlayItem(overlay: ThemeOverlay) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .padding(12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -392,8 +327,8 @@ private fun UnifiedComponentItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -436,7 +371,6 @@ private fun getComponentDisplayName(componentId: String): String {
         "ui_qs" -> "QuickSettings Style"
         "ui_volume" -> "Volume Panel Style"
         "ui_style" -> "UI Style"
-        "icon_shape" -> "Icon Shape"
         else -> componentId.replaceFirstChar { it.uppercase() }
     }
 }
@@ -450,7 +384,6 @@ private fun getComponentDescription(componentId: String): String {
         "ui_qs" -> "QuickSettings tiles and brightness slider style"
         "ui_volume" -> "Volume panel appearance"
         "ui_style" -> "Overall UI appearance"
-        "icon_shape" -> "System-wide icon shape"
         else -> "Theme component"
     }
 }
@@ -466,12 +399,12 @@ private fun ComponentSelectionItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.small)
             .background(
                 if (isEnabled) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    MaterialTheme.colorScheme.primaryContainer
                 } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    MaterialTheme.colorScheme.surfaceContainerHighest
                 }
             )
             .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -548,7 +481,7 @@ private fun InstallSection(
                             contentDescription = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Active")
+                        Text(stringResource(R.string.active))
                     }
                 }
                 is ThemeInstallState.Error -> {
@@ -556,7 +489,7 @@ private fun InstallSection(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "Error: ${installState.message}",
+                            text = stringResource(R.string.error_prefix, installState.message ?: ""),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -568,7 +501,7 @@ private fun InstallSection(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Retry")
+                            Text(stringResource(R.string.retry))
                         }
                     }
                 }
@@ -577,7 +510,7 @@ private fun InstallSection(
                         onClick = onApplyClick,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Apply")
+                        Text(stringResource(R.string.apply))
                     }
                 }
             }
@@ -595,7 +528,7 @@ private fun InstallSection(
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Download")
+                    Text(stringResource(R.string.download))
                 }
             }
 
@@ -604,7 +537,7 @@ private fun InstallSection(
                     onClick = onInstallClick,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiary
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     Icon(
@@ -612,7 +545,7 @@ private fun InstallSection(
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Install")
+                    Text(stringResource(R.string.install))
                 }
             }
             
@@ -636,7 +569,7 @@ private fun InstallSection(
                                 contentDescription = null
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Update to v${theme.version}")
+                            Text(stringResource(R.string.update_to, theme.version))
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -650,9 +583,9 @@ private fun InstallSection(
                             modifier = Modifier.weight(1f),
                             enabled = hasSelection
                         ) {
-                            Text("Apply")
+                            Text(stringResource(R.string.apply))
                         }
-                        
+
                         OutlinedButton(
                             onClick = onUninstallClick,
                             modifier = Modifier.weight(1f),
@@ -660,7 +593,7 @@ private fun InstallSection(
                                 contentColor = MaterialTheme.colorScheme.error
                             )
                         ) {
-                            Text("Uninstall")
+                            Text(stringResource(R.string.uninstall))
                         }
                     }
                 }
@@ -679,7 +612,7 @@ private fun InstallSection(
                             contentDescription = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Update to v${theme.version}")
+                        Text(stringResource(R.string.update_to, theme.version))
                     }
                 } else {
                     Column(
@@ -691,7 +624,7 @@ private fun InstallSection(
                                 onClick = onApplyPendingClick,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Apply Changes")
+                                Text(stringResource(R.string.apply_changes))
                             }
                         } else {
                             Button(
@@ -708,10 +641,10 @@ private fun InstallSection(
                                     contentDescription = null
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Active")
+                                Text(stringResource(R.string.active))
                             }
                         }
-                        
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -723,7 +656,7 @@ private fun InstallSection(
                                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             ) {
-                                Text("Disable")
+                                Text(stringResource(R.string.disable))
                             }
                             
                             OutlinedButton(
@@ -733,7 +666,7 @@ private fun InstallSection(
                                     contentColor = MaterialTheme.colorScheme.error
                                 )
                             ) {
-                                Text("Uninstall")
+                                Text(stringResource(R.string.uninstall))
                             }
                         }
                     }
@@ -750,7 +683,7 @@ private fun InstallSection(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Downloading ${installState.currentOverlay}...",
+                            text = stringResource(R.string.downloading, installState.currentOverlay),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
@@ -759,11 +692,13 @@ private fun InstallSection(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
+                    val motionScheme = MaterialTheme.motionScheme
                     val animatedProgress by animateFloatAsState(
                         targetValue = installState.progress,
+                        animationSpec = motionScheme.defaultEffectsSpec(),
                         label = "download_progress"
                     )
-                    LinearProgressIndicator(
+                    LinearWavyProgressIndicator(
                         progress = { animatedProgress },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -776,13 +711,12 @@ private fun InstallSection(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
+                    LoadingIndicator(
+                        modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Installing...",
+                        text = stringResource(R.string.installing),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -791,7 +725,7 @@ private fun InstallSection(
             is ThemeInstallState.PartiallyInstalled -> {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "${installState.installedOverlays.size} of ${installState.totalOverlays} components installed",
+                        text = stringResource(R.string.components_installed, installState.installedOverlays.size, installState.totalOverlays),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -805,7 +739,7 @@ private fun InstallSection(
                             contentDescription = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Resume Installation")
+                        Text(stringResource(R.string.resume_installation))
                     }
                 }
             }
@@ -815,7 +749,7 @@ private fun InstallSection(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Error: ${installState.message}",
+                        text = stringResource(R.string.error_prefix, installState.message ?: ""),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -827,10 +761,80 @@ private fun InstallSection(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Retry")
+                        Text(stringResource(R.string.retry))
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DetailPreviewBox(packageName: String) {
+    val context = LocalContext.current
+    val previewMap = remember {
+        val map = mutableMapOf<String, String>()
+        try {
+            val entries = context.resources.getStringArray(R.array.overlay_preview_map)
+            for (entry in entries) {
+                val parts = entry.split("|", limit = 2)
+                if (parts.size == 2) map[parts[0]] = parts[1]
+            }
+        } catch (_: Exception) {}
+        map
+    }
+
+    val prefix = previewMap[packageName] ?: ""
+    val resIds = if (prefix.isNotEmpty()) {
+        (1..4).mapNotNull { i ->
+            val id = context.resources.getIdentifier("${prefix}_$i", "drawable", context.packageName)
+            if (id != 0) id else null
+        }
+    } else emptyList()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                        MaterialTheme.colorScheme.surfaceContainer
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (resIds.isNotEmpty()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                resIds.forEach { resId ->
+                    val drawable = remember(resId) {
+                        ContextCompat.getDrawable(context, resId)
+                    }
+                    if (drawable != null) {
+                        Image(
+                            bitmap = remember(drawable) {
+                                drawable.toBitmap().asImageBitmap()
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            colorFilter = ColorFilter.tint(
+                                MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                    }
+                }
+            }
+        } else {
+            Icon(
+                imageVector = Icons.Default.Palette,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

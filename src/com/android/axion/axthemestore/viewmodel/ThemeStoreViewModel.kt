@@ -22,7 +22,6 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.axion.axthemestore.data.model.IconPack
-import com.android.axion.axthemestore.data.model.IconShape
 import com.android.axion.axthemestore.data.model.Theme
 import com.android.axion.axthemestore.data.model.ThemeCategory
 import com.android.axion.axthemestore.data.model.ThemeInstallState
@@ -74,7 +73,6 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
         loadThemes()
         loadUiStyle()
         loadIconPacks()
-        loadIconShapes()
         loadThemedIconStyle()
         refreshComponentStates()
         loadSearchHistory()
@@ -169,8 +167,9 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
 
     fun checkInstallStates() {
         refreshComponentStates()
-        if (_uiState.value.themes.isNotEmpty()) {
-            updateInstallStates(_uiState.value.themes)
+        val themes = _uiState.value.themes
+        if (themes.isNotEmpty()) {
+            updateInstallStates(themes)
         }
     }
     
@@ -210,9 +209,11 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
                     val installedOverlays = theme.overlays.filter { overlay ->
                         repository.isThemeInstalled(overlay.packageName)
                     }.map { it.componentId }.toSet()
-                    
+
+                    val categoryThemes = themeEngineProxy.getCategoryThemes()
                     val isAnyActive = theme.overlays.any { overlay ->
                         enabledThemes[overlay.componentId] == overlay.packageName
+                                || categoryThemes[overlay.componentId] == overlay.packageName
                     }
                     
                     when {
@@ -469,10 +470,12 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
                 themeEngineProxy.clearIconTheme()
                 themeEngineProxy.clearCategoryThemesForPackage(packageName)
             } else {
-                val categories = theme.overlays.map { it.componentId }
-                themeEngineProxy.disableThemeOverlays(categories)
+                for (overlay in theme.overlays) {
+                    themeEngineProxy.clearCategoryTheme(overlay.componentId)
+                }
+                themeEngineProxy.notifyThemeChanged()
             }
-            
+
             refreshComponentStates()
             updateInstallStates(_uiState.value.themes)
             Log.d(TAG, "Disabled theme: ${theme.name}")
@@ -564,13 +567,21 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
                      Log.w(TAG, "Attempted to apply theme ${theme.name} with no targets selected")
                 }
             } else {
-                val overlayMap = theme.overlays.associate { it.componentId to it.packageName }
-                if (themeEngineProxy.enableThemeOverlays(overlayMap)) {
+                var success = true
+                for (overlay in theme.overlays) {
+                    val category = overlay.componentId
+                    if (!themeEngineProxy.setCategoryTheme(category, overlay.packageName)) {
+                        success = false
+                    }
+                }
+                if (success) {
+                    themeEngineProxy.notifyThemeChanged()
+                    refreshComponentStates()
                     updateInstallStates(_uiState.value.themes)
-                    Log.d(TAG, "Applied legacy theme: ${theme.name}")
+                    Log.d(TAG, "Applied overlay theme: ${theme.name}")
                 } else {
-                    _themeStates.update { 
-                        it + (theme.id to ThemeInstallState.Error("Failed to apply theme")) 
+                    _themeStates.update {
+                        it + (theme.id to ThemeInstallState.Error("Failed to apply theme"))
                     }
                 }
             }
@@ -729,18 +740,6 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun loadIconShapes() {
-        val shapes = repository.getAvailableIconShapes()
-         val currentShape = themeEngineProxy.getIconShape()
-         
-         _uiState.update { 
-             it.copy(
-                 iconShapes = shapes,
-                 currentIconShape = currentShape
-             ) 
-         }
-    }
-    
     fun applyIconPack(packageName: String) {
         viewModelScope.launch {
             val success = if (packageName.isEmpty()) {
@@ -755,14 +754,6 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
     
-    fun applyIconShape(shapeId: String) {
-        viewModelScope.launch {
-            if (themeEngineProxy.setIconShape(shapeId)) {
-                _uiState.update { it.copy(currentIconShape = shapeId) }
-            }
-        }
-    }
-
     fun loadThemedIconStyle() {
         viewModelScope.launch {
             val style = themeEngineProxy.getThemedIconStyle()
@@ -850,6 +841,8 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
     
+    fun getThemeEngineProxy(): ThemeEngineProxy = themeEngineProxy
+
     fun clearSearchHistory() {
         _searchHistory.value = emptyList()
         sharedPrefs.edit()
@@ -867,9 +860,7 @@ data class ThemeStoreUiState(
     val error: String? = null,
     val currentUiStyle: String = ThemeEngineProxy.Companion.UiStyle.AXION,
     val iconPacks: List<IconPack> = emptyList(),
-    val iconShapes: List<IconShape> = emptyList(),
     val currentIconPack: String? = null,
-    val currentIconShape: String = ThemeEngineProxy.Companion.IconShape.SQUIRCLE,
     val themedIconStyle: String = ThemeEngineProxy.Companion.ThemedIconStyle.AXION,
     val themedIconsEnabled: Boolean = false
 )

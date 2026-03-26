@@ -19,16 +19,19 @@ package com.android.axion.axthemestore.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.*
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.axion.axthemestore.R
 import com.android.axion.axthemestore.engine.ThemeEngineProxy
 import com.android.axion.axthemestore.viewmodel.ThemeStoreViewModel
 
@@ -38,15 +41,13 @@ fun InstalledComponentsScreen(
     viewModel: ThemeStoreViewModel,
     onBackClick: () -> Unit
 ) {
-    val categoryThemes by viewModel.categoryThemesState.collectAsState()
+    val categoryThemes by viewModel.categoryThemesState.collectAsStateWithLifecycle()
     val iconTheme = remember { mutableStateOf<String?>(null) }
-    val iconShape = remember { mutableStateOf<String?>(null) }
     val uiStyle = remember { mutableStateOf<String?>(null) }
-    
+
     LaunchedEffect(Unit) {
         val proxy = ThemeEngineProxy(viewModel.getApplication())
         iconTheme.value = proxy.getIconTheme()
-        iconShape.value = proxy.getIconShape()
         uiStyle.value = proxy.getUiStyle()
     }
     
@@ -55,7 +56,7 @@ fun InstalledComponentsScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Installed Components",
+                        text = stringResource(R.string.installed_components),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -63,8 +64,8 @@ fun InstalledComponentsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 },
@@ -86,13 +87,13 @@ fun InstalledComponentsScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 ) {
                     Text(
-                        text = "Active Theme Components",
+                        text = stringResource(R.string.active_theme_components),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "View all components currently applied to your system",
+                        text = stringResource(R.string.active_theme_components_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -100,34 +101,20 @@ fun InstalledComponentsScreen(
             }
             
             item {
-                SectionHeader(title = "UI Style")
+                SectionHeader(title = stringResource(R.string.ui_style))
             }
             item {
                 ComponentCard(
                     componentName = "UI Style",
-                    packageOrId = uiStyle.value ?: "Default (Axion)",
+                    packageOrId = uiStyle.value ?: stringResource(R.string.default_ui_style),
                     icon = Icons.Default.Palette,
                     isBuiltIn = true
                 )
             }
             
-            if (!iconShape.value.isNullOrEmpty()) {
-                item {
-                    SectionHeader(title = "Icon Shape")
-                }
-                item {
-                    ComponentCard(
-                        componentName = "Icon Shape",
-                        packageOrId = iconShape.value ?: "Default",
-                        icon = Icons.Default.Interests,
-                        isBuiltIn = true
-                    )
-                }
-            }
-            
             if (categoryThemes.isNotEmpty()) {
                 item {
-                    SectionHeader(title = "Icon Theme Components")
+                    SectionHeader(title = stringResource(R.string.icon_theme_components))
                 }
                 
                 items(categoryThemes.entries.toList()) { (category, packageName) ->
@@ -160,13 +147,13 @@ fun InstalledComponentsScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "No Icon Themes Installed",
+                                text = stringResource(R.string.no_icon_themes_installed),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Browse the theme store to install icon themes",
+                                text = stringResource(R.string.browse_for_icon_themes),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -200,7 +187,7 @@ private fun ComponentCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.small
     ) {
         Row(
             modifier = Modifier
@@ -210,7 +197,7 @@ private fun ComponentCard(
         ) {
             Surface(
                 modifier = Modifier.size(48.dp),
-                shape = RoundedCornerShape(8.dp),
+                shape = MaterialTheme.shapes.extraSmall,
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Box(
@@ -246,13 +233,13 @@ private fun ComponentCard(
             
             if (!isBuiltIn) {
                 Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    shape = MaterialTheme.shapes.extraSmall,
+                    color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
-                        text = "Active",
+                        text = stringResource(R.string.active),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }

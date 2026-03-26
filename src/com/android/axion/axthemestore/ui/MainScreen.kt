@@ -20,26 +20,21 @@ import android.content.Context
 import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
-import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
-import com.android.axion.axthemestore.data.model.Theme
 import com.android.axion.axthemestore.viewmodel.ThemeStoreViewModel
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainScreen(viewModel: ThemeStoreViewModel) {
     val navController = rememberNavController()
@@ -79,122 +74,69 @@ fun MainScreen(viewModel: ThemeStoreViewModel) {
         }
     }
     
-    val bottomNavItems = listOf(
-        BottomNavItem.Themes,
-        BottomNavItem.IconPacks,
-        BottomNavItem.Shapes
-    )
-    
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-                
-                bottomNavItems.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = null) },
-                        label = { Text(screen.label) },
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                        onClick = {
-                            if (currentDestination?.route != screen.route) {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        inclusive = false
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
-                        }
-                    )
+    val motionScheme = MaterialTheme.motionScheme
+    NavHost(
+        navController = navController,
+        startDestination = "themes",
+        enterTransition = { fadeIn(motionScheme.defaultEffectsSpec()) },
+        exitTransition = { fadeOut(motionScheme.defaultEffectsSpec()) },
+        popEnterTransition = { fadeIn(motionScheme.defaultEffectsSpec()) },
+        popExitTransition = { fadeOut(motionScheme.defaultEffectsSpec()) }
+    ) {
+        composable("themes") {
+            ThemeStoreScreen(
+                viewModel = viewModel,
+                onThemeClick = { theme ->
+                    navController.navigate("detail/${theme.id}")
+                },
+                onNavigateToCategory = { categoryId ->
+                    navController.navigate("category/$categoryId")
+                },
+                onNavigateToInstalledComponents = {
+                    navController.navigate("installed_components")
                 }
-            }
+            )
         }
-    ) { innerPadding ->
-        val layoutDirection = LocalLayoutDirection.current
-        NavHost(
-            navController = navController,
-            startDestination = BottomNavItem.Themes.route,
-            modifier = Modifier.padding(
-                start = innerPadding.calculateStartPadding(layoutDirection),
-                end = innerPadding.calculateEndPadding(layoutDirection),
-                bottom = innerPadding.calculateBottomPadding()
-            ),
-            enterTransition = { fadeIn(tween(300)) },
-            exitTransition = { fadeOut(tween(300)) },
-            popEnterTransition = { fadeIn(tween(300)) },
-            popExitTransition = { fadeOut(tween(300)) }
-        ) {
-            composable(BottomNavItem.Themes.route) {
-                ThemeStoreScreen(
+
+        composable("installed_components") {
+            InstalledComponentsScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "category/{categoryId}",
+            arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val categoryId = backStackEntry.arguments?.getString("categoryId")
+            categoryId?.let {
+                CategoryThemesScreen(
+                    categoryId = it,
                     viewModel = viewModel,
                     onThemeClick = { theme ->
                         navController.navigate("detail/${theme.id}")
                     },
-                    onNavigateToCategory = { categoryId ->
-                        navController.navigate("category/$categoryId")
-                    },
-                    onNavigateToInstalledComponents = {
-                        navController.navigate("installed_components")
-                    }
+                    onBackClick = { navController.popBackStack() }
                 )
             }
-            
-            composable("installed_components") {
-                InstalledComponentsScreen(
+        }
+
+        composable(
+            route = "detail/{themeId}",
+            arguments = listOf(navArgument("themeId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val themeId = backStackEntry.arguments?.getString("themeId")
+            val uiState = viewModel.uiState.value
+            val theme = uiState.themes.find { it.id == themeId }
+
+            theme?.let {
+                ThemeDetailScreen(
+                    theme = it,
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() }
                 )
             }
-            
-            composable(
-                route = "category/{categoryId}",
-                arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val categoryId = backStackEntry.arguments?.getString("categoryId")
-                categoryId?.let {
-                    CategoryThemesScreen(
-                        categoryId = it,
-                        viewModel = viewModel,
-                        onThemeClick = { theme ->
-                            navController.navigate("detail/${theme.id}")
-                        },
-                        onBackClick = { navController.popBackStack() }
-                    )
-                }
-            }
-            
-            composable(BottomNavItem.IconPacks.route) {
-                IconPackListScreen(viewModel = viewModel)
-            }
-            
-            composable(BottomNavItem.Shapes.route) {
-                IconShapePickerScreen(viewModel = viewModel)
-            }
-            
-            composable(
-                route = "detail/{themeId}",
-                arguments = listOf(navArgument("themeId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val themeId = backStackEntry.arguments?.getString("themeId")
-                val uiState = viewModel.uiState.value
-                val theme = uiState.themes.find { it.id == themeId }
-                
-                theme?.let {
-                    ThemeDetailScreen(
-                        theme = it,
-                        viewModel = viewModel,
-                        onBackClick = { navController.popBackStack() }
-                    )
-                }
-            }
         }
     }
-}
-
-sealed class BottomNavItem(val route: String, val label: String, val icon: ImageVector) {
-    object Themes : BottomNavItem("themes", "Themes", Icons.Default.Palette)
-    object IconPacks : BottomNavItem("iconposts", "App Icons", Icons.Default.Category)
-    object Shapes : BottomNavItem("shapes", "Shapes", Icons.Default.Interests)
 }

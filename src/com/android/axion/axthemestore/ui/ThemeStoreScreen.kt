@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.android.axion.axthemestore.ui
 
 import androidx.compose.animation.AnimatedVisibility
@@ -21,13 +23,16 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.pager.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.foundation.shape.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
@@ -37,10 +42,15 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.axion.axthemestore.R
 import com.android.axion.axthemestore.data.model.Theme
 import com.android.axion.axthemestore.data.model.ThemeCategory
 import com.android.axion.axthemestore.data.model.ThemeInstallState
@@ -60,8 +70,8 @@ fun ThemeStoreScreen(
     onNavigateToCategory: (String) -> Unit = {},
     onNavigateToInstalledComponents: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val themeStates by viewModel.themeStates.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val themeStates by viewModel.themeStates.collectAsStateWithLifecycle()
     
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -113,8 +123,8 @@ fun CategoryThemesScreen(
     onThemeClick: (Theme) -> Unit,
     onBackClick: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val themeStates by viewModel.themeStates.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val themeStates by viewModel.themeStates.collectAsStateWithLifecycle()
     
     val category = uiState.categories.find { it.id == categoryId }
     val categoryName = category?.name ?: "Themes"
@@ -138,8 +148,8 @@ fun CategoryThemesScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 },
@@ -211,8 +221,8 @@ private fun SearchScreen(
         ) {
             IconButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back"
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.back)
                 )
             }
             
@@ -224,16 +234,16 @@ private fun SearchScreen(
                     .focusRequester(focusRequester),
                 placeholder = { 
                     Text(
-                        "Search themes",
+                        stringResource(R.string.search_themes),
                         style = MaterialTheme.typography.bodyLarge
                     ) 
                 },
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant
                 )
             )
             
@@ -241,7 +251,7 @@ private fun SearchScreen(
                 IconButton(onClick = { onSearchChange("") }) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Clear"
+                        contentDescription = stringResource(R.string.clear)
                     )
                 }
             }
@@ -255,7 +265,7 @@ private fun SearchScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No results found",
+                    text = stringResource(R.string.no_results_found),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -274,7 +284,7 @@ private fun SearchScreen(
                 }
             }
         } else {
-            val searchHistory by viewModel.searchHistory.collectAsState()
+            val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
             
             if (searchHistory.isEmpty()) {
                 Box(
@@ -292,7 +302,7 @@ private fun SearchScreen(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                         Text(
-                            text = "No recent searches",
+                            text = stringResource(R.string.no_recent_searches),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -312,12 +322,12 @@ private fun SearchScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Recent searches",
+                            text = stringResource(R.string.recent_searches),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Medium
                         )
                         TextButton(onClick = { viewModel.clearSearchHistory() }) {
-                            Text("Clear all")
+                            Text(stringResource(R.string.clear_all))
                         }
                     }
                     
@@ -350,7 +360,7 @@ private fun SearchScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Remove",
+                                        contentDescription = stringResource(R.string.remove),
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -388,7 +398,7 @@ private fun BrowseScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Themes",
+                text = stringResource(R.string.themes),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -399,21 +409,21 @@ private fun BrowseScreen(
             IconButton(onClick = onNavigateToInstalledComponents) {
                 Icon(
                     imageVector = Icons.Default.Layers,
-                    contentDescription = "Installed Components"
+                    contentDescription = stringResource(R.string.installed_components)
                 )
             }
             
             IconButton(onClick = onSearchClick) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Search"
+                    contentDescription = stringResource(R.string.search)
                 )
             }
             
             IconButton(onClick = onRefresh) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
-                    contentDescription = "Refresh"
+                    contentDescription = stringResource(R.string.refresh)
                 )
             }
         }
@@ -459,7 +469,7 @@ private fun BrowseScreen(
                         if (installedThemes.isNotEmpty()) {
                             item {
                                 ThemeSection(
-                                    title = "Installed",
+                                    title = stringResource(R.string.installed),
                                     themes = installedThemes,
                                     themeStates = themeStates,
                                     onThemeClick = onThemeClick
@@ -560,48 +570,45 @@ private fun ThemeListItem(
             Box(
                 modifier = Modifier
                     .size(56.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.small)
             ) {
                 val isInstalled = installState is ThemeInstallState.Installed || 
                                   installState is ThemeInstallState.InstalledInactive
                 val packageName = theme.overlays.firstOrNull()?.packageName
                 
-                when {
-                    theme.previewImages.isNotEmpty() -> {
-                        AsyncNetworkImage(
-                            url = theme.previewImages.first(),
-                            contentDescription = theme.name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                            errorContent = {
-                                if (isInstalled && packageName != null) {
-                                    ThemePackagePreview(
-                                        packageName = packageName,
-                                        modifier = Modifier.fillMaxSize(),
-                                        showSingleIcon = true
-                                    )
-                                } else {
-                                    ImagePlaceholder(modifier = Modifier.fillMaxSize())
-                                }
-                            }
-                        )
-                    }
-                    isInstalled && packageName != null -> {
+                run {
+                    val previewResIds = getLocalPreviewResIds(
+                        LocalContext.current, packageName ?: "")
+                    if (previewResIds.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(previewResIds.first()),
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                colorFilter = ColorFilter.tint(
+                                    MaterialTheme.colorScheme.onSurface)
+                            )
+                        }
+                    } else if (isInstalled && packageName != null) {
                         ThemePackagePreview(
                             packageName = packageName,
                             modifier = Modifier.fillMaxSize(),
                             showSingleIcon = true
                         )
-                    }
-                    else -> {
+                    } else {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(
                                     brush = Brush.linearGradient(
                                         colors = listOf(
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            MaterialTheme.colorScheme.tertiaryContainer
+                                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            MaterialTheme.colorScheme.surfaceContainer
                                         )
                                     )
                                 ),
@@ -611,7 +618,7 @@ private fun ThemeListItem(
                                 imageVector = Icons.Default.Palette,
                                 contentDescription = null,
                                 modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -656,7 +663,7 @@ private fun ThemeListItem(
                 Box(
                     modifier = Modifier
                         .size(width = 48.dp, height = 80.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(MaterialTheme.shapes.extraSmall)
                 ) {
                     AsyncNetworkImage(
                         url = theme.previewImages[1],
@@ -680,7 +687,7 @@ private fun CompactThemeCard(
         onClick = onClick,
         modifier = Modifier
             .width(140.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
@@ -690,7 +697,7 @@ private fun CompactThemeCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(100.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    .clip(MaterialTheme.shapes.medium)
             ) {
                 val isInstalled = installState is ThemeInstallState.Installed || 
                                   installState is ThemeInstallState.InstalledInactive
@@ -728,8 +735,8 @@ private fun CompactThemeCard(
                                 .background(
                                     brush = Brush.linearGradient(
                                         colors = listOf(
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            MaterialTheme.colorScheme.tertiaryContainer
+                                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            MaterialTheme.colorScheme.surfaceContainer
                                         )
                                     )
                                 ),
@@ -739,7 +746,7 @@ private fun CompactThemeCard(
                                 imageVector = Icons.Default.Palette,
                                 contentDescription = null,
                                 modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -793,7 +800,7 @@ private fun FeaturedCarousel(
     
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Featured",
+            text = stringResource(R.string.featured),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier
@@ -823,54 +830,20 @@ private fun FeaturedThemeCard(
     installState: ThemeInstallState,
     onClick: () -> Unit
 ) {
+    val containerColor = MaterialTheme.colorScheme.primaryContainer
+    val iconTint = if (containerColor.luminance() < 0.4f) Color.White else Color.Black
+
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxSize(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = containerColor
         )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            when {
-                theme.previewImages.isNotEmpty() -> {
-                    AsyncNetworkImage(
-                        url = theme.previewImages.first(),
-                        contentDescription = theme.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                        errorContent = {
-                            val isInstalled = installState is ThemeInstallState.Installed || 
-                                              installState is ThemeInstallState.InstalledInactive
-                            val packageName = theme.overlays.firstOrNull()?.packageName
-                            
-                            if (isInstalled && packageName != null) {
-                                ThemePackagePreview(
-                                    packageName = packageName,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                ImagePlaceholder(modifier = Modifier.fillMaxSize())
-                            }
-                        }
-                    )
-                }
-                else -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.tertiaryContainer
-                                    )
-                                )
-                            )
-                    )
-                }
-            }
-            
+            FeaturedPreviewContent(theme = theme, iconTint = iconTint)
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -878,13 +851,16 @@ private fun FeaturedThemeCard(
                         brush = Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.7f)
+                                Color.Black.copy(alpha = 0.6f)
                             ),
                             startY = 100f
                         )
                     )
             )
-            
+
+            val scrimmedBg = lerp(containerColor, Color.Black, 0.6f)
+            val textColor = if (scrimmedBg.luminance() < 0.4f) Color.White else Color.Black
+
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -894,13 +870,68 @@ private fun FeaturedThemeCard(
                     text = theme.name,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = textColor
                 )
                 Text(
                     text = theme.author,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.8f)
+                    color = textColor.copy(alpha = 0.8f)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeaturedPreviewContent(theme: Theme, iconTint: Color) {
+    val context = LocalContext.current
+    val previewMap = remember {
+        val map = mutableMapOf<String, String>()
+        try {
+            val entries = context.resources.getStringArray(R.array.overlay_preview_map)
+            for (entry in entries) {
+                val parts = entry.split("|", limit = 2)
+                if (parts.size == 2) map[parts[0]] = parts[1]
+            }
+        } catch (_: Exception) {}
+        map
+    }
+
+    val packageName = theme.overlays.firstOrNull()?.packageName ?: ""
+    val prefix = previewMap[packageName] ?: ""
+    val resIds = if (prefix.isNotEmpty()) {
+        (1..4).mapNotNull { i ->
+            val id = context.resources.getIdentifier("${prefix}_$i", "drawable", context.packageName)
+            if (id != 0) id else null
+        }
+    } else emptyList()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (resIds.isNotEmpty()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                for (resId in resIds) {
+                    Image(
+                        painter = painterResource(resId),
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        colorFilter = ColorFilter.tint(iconTint)
+                    )
+                }
             }
         }
     }
@@ -916,10 +947,10 @@ private fun LoadingState() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            CircularProgressIndicator()
+            LoadingIndicator()
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Loading themes...",
+                text = stringResource(R.string.loading_themes),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -941,13 +972,15 @@ private fun ErrorState(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(32.dp)
         ) {
-            Text(
-                text = "😕",
-                style = MaterialTheme.typography.displayMedium
+            Icon(
+                imageVector = Icons.Default.ErrorOutline,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Failed to load themes",
+                text = stringResource(R.string.failed_to_load_themes),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -965,7 +998,7 @@ private fun ErrorState(
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Retry")
+                Text(stringResource(R.string.retry))
             }
         }
     }
@@ -981,25 +1014,47 @@ private fun EmptyState(isSearching: Boolean) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = if (isSearching) "🔍" else "📭",
-                style = MaterialTheme.typography.displayMedium
+            Icon(
+                imageVector = if (isSearching) Icons.Default.SearchOff else Icons.Default.Inbox,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = if (isSearching) "No themes found" else "No themes available",
+                text = stringResource(if (isSearching) R.string.no_themes_found else R.string.no_themes_available),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (isSearching) 
-                    "Try a different search term" 
-                else 
-                    "Check back later for new themes",
+                text = stringResource(
+                    if (isSearching) R.string.try_different_search
+                    else R.string.check_back_later
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+private val sPreviewMapCache = mutableMapOf<String, String>()
+
+@Composable
+private fun getLocalPreviewResIds(context: android.content.Context, packageName: String): List<Int> {
+    if (sPreviewMapCache.isEmpty()) {
+        try {
+            val entries = context.resources.getStringArray(R.array.overlay_preview_map)
+            for (entry in entries) {
+                val parts = entry.split("|", limit = 2)
+                if (parts.size == 2) sPreviewMapCache[parts[0]] = parts[1]
+            }
+        } catch (_: Exception) {}
+    }
+    val prefix = sPreviewMapCache[packageName] ?: return emptyList()
+    return (1..4).mapNotNull { i ->
+        val id = context.resources.getIdentifier("${prefix}_$i", "drawable", context.packageName)
+        if (id != 0) id else null
     }
 }

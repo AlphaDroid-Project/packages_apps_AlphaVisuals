@@ -27,9 +27,7 @@ import com.android.axion.axthemestore.data.model.ThemesResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import com.android.axion.axthemestore.engine.ThemeEngineProxy
 import com.android.axion.axthemestore.data.model.IconPack
-import com.android.axion.axthemestore.data.model.IconShape
 import android.content.Intent
 import java.net.HttpURLConnection
 import java.net.URL
@@ -39,7 +37,7 @@ class ThemeRepository(private val context: Context) {
     companion object {
         private const val TAG = "ThemeRepository"
         private const val THEMES_JSON_URL = 
-            "https://raw.githubusercontent.com/AxionAOSP/AxThemeStore_themes_repository/main/themes.json"
+            "https://raw.githubusercontent.com/AxionAOSP/AxThemeStore_themes_repository/lineage-23.2/themes.json"
         private const val CACHE_DURATION_MS = 0L
     }
     
@@ -377,76 +375,4 @@ class ThemeRepository(private val context: Context) {
         listOf(IconPack("", "System Default", null)) + sortedPacks
     }
     
-    fun getAvailableIconShapes(): List<IconShape> {
-        val shapes = mutableListOf<IconShape>()
-        
-        shapes.add(IconShape(
-            ThemeEngineProxy.Companion.IconShape.DEFAULT,
-            "System Default",
-            "M50,0A50,50,0,1,1,50,100A50,50,0,1,1,50,0"
-        ))
-        shapes.add(IconShape(
-            ThemeEngineProxy.Companion.IconShape.SQUIRCLE,
-            "Squircle",
-            "M50,0C77.6,0 100,22.4 100,50C100,77.6 77.6,100 50,100C22.4,100 0,77.6 0,50C0,22.4 22.4,0 50,0Z"
-        ))
-        shapes.add(IconShape(
-            ThemeEngineProxy.Companion.IconShape.ROUNDED_RECT,
-            "Rounded Rect",
-            "M50,0L92,0C96.42,0 100,4.58 100,8L100,92C100,96.42 96.42,100 92,100L8,100C4.58,100 0,96.42 0,92L0,8C0,4.42 4.42,0 8,0L50,0Z"
-        ))
-        shapes.add(IconShape(
-            ThemeEngineProxy.Companion.IconShape.TEARDROP,
-            "Teardrop",
-            "M50,0A50,50,0,0,1,100,50L100,92C100,96.42 96.42,100 92,100L8,100C4.42,100 0,96.42 0,92L0,50A50,50,0,0,1,50,0Z"
-        ))
-        shapes.add(IconShape(
-            ThemeEngineProxy.Companion.IconShape.CYLINDER,
-            "Cylinder",
-            "M50,0C77.6,0 100,11.2 100,25L100,75C100,88.8 77.6,100 50,100C22.4,100 0,88.8 0,75L0,25C0,11.2 22.4,0 50,0Z"
-        ))
-        shapes.add(IconShape(
-            ThemeEngineProxy.Companion.IconShape.HEXAGON,
-            "Hexagon",
-            "M50,0L93.3,25L93.3,75L50,100L6.7,75L6.7,25L50,0Z"
-        ))
-        
-        try {
-            val pm = context.packageManager
-            val installedPackages = pm.getInstalledPackages(PackageManager.GET_META_DATA)
-            
-            for (packageInfo in installedPackages) {
-                val metaData = packageInfo.applicationInfo?.metaData
-                if (metaData?.containsKey("axion_shapes") == true) {
-                    try {
-                        val packageName = packageInfo.packageName
-                        val appInfo = packageInfo.applicationInfo
-                        if (appInfo != null) {
-                            val resources = pm.getResourcesForApplication(packageName)
-                            val appLabel = pm.getApplicationLabel(appInfo).toString()
-                            
-                            val resId = resources.getIdentifier("config_icon_mask", "string", packageName)
-                            if (resId != 0) {
-                                val pathData = resources.getString(resId)
-                                if (pathData.isNotBlank()) {
-                                    shapes.add(IconShape(
-                                        id = "external_$packageName",
-                                        label = appLabel,
-                                        pathData = pathData
-                                    ))
-                                    Log.d(TAG, "Found external icon shape: $appLabel from $packageName")
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to load external icon shape from ${packageInfo.packageName}", e)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to scan for external icon shapes", e)
-        }
-        
-        return shapes
-    }
 }

@@ -14,6 +14,8 @@
  * limitations under the License.
 */
 
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.android.axion.axthemestore.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -25,15 +27,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.android.axion.axthemestore.R
 import com.android.axion.axthemestore.data.model.Theme
 import com.android.axion.axthemestore.data.model.ThemeInstallState
 import com.android.axion.axthemestore.data.model.formatFileSize
@@ -50,7 +57,7 @@ fun ThemeCard(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(28.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
@@ -61,51 +68,9 @@ fun ThemeCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 10f)
-                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .clip(MaterialTheme.shapes.extraLarge)
             ) {
-                if (theme.previewImages.isNotEmpty()) {
-                    AsyncNetworkImage(
-                        url = theme.previewImages.first(),
-                        contentDescription = theme.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                        errorContent = {
-                            val isInstalled = installState is ThemeInstallState.Installed || 
-                                              installState is ThemeInstallState.InstalledInactive
-                            val packageName = theme.overlays.firstOrNull()?.packageName
-                            
-                            if (isInstalled && packageName != null) {
-                                com.android.axion.axthemestore.ui.components.ThemePackagePreview(
-                                    packageName = packageName,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                ImagePlaceholder(modifier = Modifier.fillMaxSize())
-                            }
-                        }
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.tertiaryContainer
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
-                        )
-                    }
-                }
+                LocalPreviewBox(theme = theme)
                 
                 InstallStateBadge(
                     state = installState,
@@ -148,7 +113,7 @@ fun ThemeCard(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(MaterialTheme.shapes.small)
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
@@ -245,7 +210,7 @@ private fun InstallStateBadge(
     Box(
         modifier = modifier
             .size(40.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(MaterialTheme.shapes.small)
             .background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
@@ -255,17 +220,15 @@ private fun InstallStateBadge(
                     targetValue = state.progress,
                     label = "download_progress"
                 )
-                CircularProgressIndicator(
+                LoadingIndicator(
                     progress = { animatedProgress },
                     modifier = Modifier.size(24.dp),
-                    strokeWidth = 3.dp,
                     color = contentColor
                 )
             }
             is ThemeInstallState.Installing -> {
-                CircularProgressIndicator(
+                LoadingIndicator(
                     modifier = Modifier.size(24.dp),
-                    strokeWidth = 3.dp,
                     color = contentColor
                 )
             }
@@ -279,6 +242,70 @@ private fun InstallStateBadge(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LocalPreviewBox(theme: Theme) {
+    val context = LocalContext.current
+    val previewMap = remember {
+        val map = mutableMapOf<String, String>()
+        try {
+            val entries = context.resources.getStringArray(R.array.overlay_preview_map)
+            for (entry in entries) {
+                val parts = entry.split("|", limit = 2)
+                if (parts.size == 2) map[parts[0]] = parts[1]
+            }
+        } catch (_: Exception) {}
+        map
+    }
+
+    val packageName = theme.overlays.firstOrNull()?.packageName ?: ""
+    val prefix = previewMap[packageName] ?: ""
+    val resIds = if (prefix.isNotEmpty()) {
+        (1..4).mapNotNull { i ->
+            val id = context.resources.getIdentifier("${prefix}_$i", "drawable", context.packageName)
+            if (id != 0) id else null
+        }
+    } else emptyList()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                        MaterialTheme.colorScheme.surfaceContainer
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (resIds.isNotEmpty()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                resIds.forEach { resId ->
+                    Image(
+                        painter = painterResource(resId),
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        colorFilter = ColorFilter.tint(
+                            MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                }
+            }
+        } else {
+            Icon(
+                imageVector = Icons.Default.Download,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

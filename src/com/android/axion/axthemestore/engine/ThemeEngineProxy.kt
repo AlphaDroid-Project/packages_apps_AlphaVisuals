@@ -17,6 +17,10 @@
 package com.android.axion.axthemestore.engine
 
 import android.content.Context
+import android.content.om.OverlayManager
+import android.content.om.OverlayManagerTransaction
+import android.content.res.ThemeEngine
+import android.os.UserHandle
 import android.provider.Settings
 import android.util.Log
 import org.json.JSONObject
@@ -27,6 +31,11 @@ class ThemeEngineProxy(private val context: Context) {
         private const val TAG = "ThemeEngineProxy"
         
         const val SETTINGS_THEME_ENGINE_DATA = "theme_engine_data"
+
+        private val ICON_PACK_CATEGORIES = setOf(
+            "android.theme.customization.icon_pack.android",
+            "android.theme.customization.icon_pack.systemui",
+        )
         
         object Category {
             const val STATUSBAR_WIFI = "statusbar_wifi"
@@ -39,7 +48,6 @@ class ThemeEngineProxy(private val context: Context) {
             const val UI_VOLUME = "ui_volume"
             const val UI_STYLE = "ui_style"
             
-            const val ICON_SHAPE = "icon_shape"
             const val ICON_PACK = "icon_pack"
         }
         
@@ -49,16 +57,6 @@ class ThemeEngineProxy(private val context: Context) {
             const val MINIMAL = "minimal"
         }
         
-        object IconShape {
-            const val DEFAULT = ""
-            const val CIRCLE = "circle"
-            const val SQUIRCLE = "squircle"
-            const val ROUNDED_RECT = "rounded_rect"
-            const val TEARDROP = "teardrop"
-            const val CYLINDER = "cylinder"
-            const val HEXAGON = "hexagon"
-        }
-
         object ThemedIconStyle {
             const val AXION = "axion"
             const val AOSP = "aosp"
@@ -105,13 +103,10 @@ class ThemeEngineProxy(private val context: Context) {
         return try {
             val json = JSONObject(jsonStr)
             val version = json.optInt("version", 1)
-            val iconTheme = if (json.has("iconTheme") && !json.isNull("iconTheme")) 
-                json.getString("iconTheme") else null
-            val iconShape = if (json.has("iconShape") && !json.isNull("iconShape"))
-                json.getString("iconShape") else null
-            
+            val iconTheme = if (json.has("systemThemeIcons") && !json.isNull("systemThemeIcons")) 
+                json.getString("systemThemeIcons") else null
             val iconThemeTargets = mutableListOf<String>()
-            val targetsArr = json.optJSONArray("iconThemeTargets")
+            val targetsArr = json.optJSONArray("systemThemeIconTargets")
             if (targetsArr != null) {
                 for (i in 0 until targetsArr.length()) {
                     iconThemeTargets.add(targetsArr.getString(i))
@@ -141,7 +136,7 @@ class ThemeEngineProxy(private val context: Context) {
                 themesMap[key] = ThemeCategoryConfig(enabled, pkgName, styleId)
             }
             
-            ThemeEngineConfig(version, themesMap, iconTheme, iconThemeTargets, categoryThemes, iconShape)
+            ThemeEngineConfig(version, themesMap, iconTheme, iconThemeTargets, categoryThemes)
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing config JSON", e)
             ThemeEngineConfig()
@@ -151,12 +146,10 @@ class ThemeEngineProxy(private val context: Context) {
     private fun serializeConfig(config: ThemeEngineConfig): String {
         val json = JSONObject()
         json.put("version", config.version)
-        json.put("iconTheme", config.iconTheme)
-        json.put("iconShape", config.iconShape)
-        
+        json.put("systemThemeIcons", config.iconTheme)
         val targetsArr = org.json.JSONArray()
         config.iconThemeTargets.forEach { targetsArr.put(it) }
-        json.put("iconThemeTargets", targetsArr)
+        json.put("systemThemeIconTargets", targetsArr)
         
         val catThemesObj = JSONObject()
         config.categoryThemes.forEach { (key, value) ->
@@ -266,15 +259,6 @@ class ThemeEngineProxy(private val context: Context) {
             ?: UiStyle.AXION
     }
     
-    fun setIconShape(shapeId: String): Boolean {
-        val config = getThemeConfig()
-        return saveThemeConfig(config.copy(iconShape = shapeId))
-    }
-    
-    fun getIconShape(): String {
-        return getThemeConfig().iconShape ?: IconShape.SQUIRCLE
-    }
-    
     fun setIconPack(packageName: String): Boolean {
         return enableTheme(Category.ICON_PACK, packageName)
     }
@@ -304,16 +288,20 @@ class ThemeEngineProxy(private val context: Context) {
     fun clearCategoryThemesForPackage(packageName: String): Boolean {
         val config = getThemeConfig()
         val updatedCategoryThemes = config.categoryThemes.filterValues { it != packageName }
-        
+
         val allTargets = updatedCategoryThemes.keys.toList()
         val uniquePackages = updatedCategoryThemes.values.toSet()
         val iconThemePackage = if (uniquePackages.size == 1) uniquePackages.first() else null
-        
-        return saveThemeConfig(config.copy(
+
+        val saved = saveThemeConfig(config.copy(
             iconTheme = iconThemePackage,
             iconThemeTargets = allTargets,
             categoryThemes = updatedCategoryThemes
         ))
+        if (saved) {
+            syncOverlayPackagesSettings(updatedCategoryThemes)
+        }
+        return saved
     }
     
     fun getIconThemeTargets(): List<String> {
@@ -326,11 +314,15 @@ class ThemeEngineProxy(private val context: Context) {
         targets.forEach { target ->
             updatedCategoryThemes[target] = packageName
         }
-        return saveThemeConfig(config.copy(
+        val saved = saveThemeConfig(config.copy(
             iconTheme = packageName,
             iconThemeTargets = targets,
             categoryThemes = updatedCategoryThemes
         ))
+        if (saved) {
+            syncOverlayPackagesSettings(updatedCategoryThemes)
+        }
+        return saved
     }
     
     fun enableIconThemeTarget(target: String): Boolean {
@@ -360,34 +352,77 @@ class ThemeEngineProxy(private val context: Context) {
     
     fun setCategoryTheme(category: String, packageName: String): Boolean {
         val config = getThemeConfig()
+        val oldPackage = config.categoryThemes[category]
         val updatedCategoryThemes = config.categoryThemes.toMutableMap()
         updatedCategoryThemes[category] = packageName
-        
+
         val allTargets = updatedCategoryThemes.keys.toList()
         val uniquePackages = updatedCategoryThemes.values.toSet()
         val iconThemePackage = if (uniquePackages.size == 1) uniquePackages.first() else null
-        
-        return saveThemeConfig(config.copy(
+
+        val saved = saveThemeConfig(config.copy(
             iconTheme = iconThemePackage,
             iconThemeTargets = allTargets,
             categoryThemes = updatedCategoryThemes
         ))
+        if (saved) {
+            setOverlayEnabled(packageName, true, oldPackage)
+            syncOverlayPackagesSettings(updatedCategoryThemes)
+        }
+        return saved
     }
-    
+
     fun clearCategoryTheme(category: String): Boolean {
         val config = getThemeConfig()
+        val oldPackage = config.categoryThemes[category]
         val updatedCategoryThemes = config.categoryThemes.toMutableMap()
         updatedCategoryThemes.remove(category)
-        
+
         val allTargets = updatedCategoryThemes.keys.toList()
         val uniquePackages = updatedCategoryThemes.values.toSet()
         val iconThemePackage = if (uniquePackages.size == 1) uniquePackages.first() else null
-        
-        return saveThemeConfig(config.copy(
+
+        val saved = saveThemeConfig(config.copy(
             iconTheme = iconThemePackage,
             iconThemeTargets = allTargets,
             categoryThemes = updatedCategoryThemes
         ))
+        if (saved) {
+            if (oldPackage != null) {
+                setOverlayEnabled(oldPackage, false, null)
+            }
+            syncOverlayPackagesSettings(updatedCategoryThemes)
+        }
+        return saved
+    }
+
+    private fun setOverlayEnabled(packageName: String, enabled: Boolean, disablePackage: String?) {
+        try {
+            val om = context.getSystemService(OverlayManager::class.java) ?: return
+            val userHandle = UserHandle.of(UserHandle.myUserId())
+            val builder = OverlayManagerTransaction.Builder()
+            if (disablePackage != null && disablePackage != packageName) {
+                try {
+                    val info = om.getOverlayInfo(disablePackage, userHandle)
+                    if (info != null) {
+                        builder.setEnabled(info.overlayIdentifier, false)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to disable old overlay: $disablePackage", e)
+                }
+            }
+            try {
+                val info = om.getOverlayInfo(packageName, userHandle)
+                if (info != null) {
+                    builder.setEnabled(info.overlayIdentifier, enabled)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to ${if (enabled) "enable" else "disable"} overlay: $packageName", e)
+            }
+            om.commit(builder.build())
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to manage overlay: $packageName", e)
+        }
     }
     
     fun getCategoryTheme(category: String): String? {
@@ -419,11 +454,15 @@ class ThemeEngineProxy(private val context: Context) {
         val uniquePackages = updatedCategoryThemes.values.toSet()
         val iconThemePackage = if (uniquePackages.size == 1) uniquePackages.first() else null
         
-        return saveThemeConfig(config.copy(
+        val saved = saveThemeConfig(config.copy(
             iconTheme = iconThemePackage,
             iconThemeTargets = allTargets,
             categoryThemes = updatedCategoryThemes
         ))
+        if (saved) {
+            syncOverlayPackagesSettings(updatedCategoryThemes)
+        }
+        return saved
     }
 
     fun setThemedIconStyle(style: String) {
@@ -456,6 +495,56 @@ class ThemeEngineProxy(private val context: Context) {
             0
         ) == 1
     }
+
+    private fun syncOverlayPackagesSettings(categoryThemes: Map<String, String>) {
+        try {
+            val resolver = context.contentResolver
+            val current = Settings.Secure.getStringForUser(
+                resolver,
+                Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES,
+                UserHandle.myUserId()
+            )
+            val json = if (current.isNullOrBlank()) JSONObject() else JSONObject(current)
+
+            ICON_PACK_CATEGORIES.forEach { category -> json.remove(category) }
+
+            categoryThemes.forEach { (category, packageName) ->
+                if (category in ICON_PACK_CATEGORIES) {
+                    json.put(category, packageName)
+                }
+            }
+
+            Settings.Secure.putStringForUser(
+                resolver,
+                Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES,
+                json.toString(),
+                UserHandle.myUserId()
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync overlay packages settings", e)
+        }
+    }
+
+    private fun getThemeEngine(): ThemeEngine? = ThemeEngine.getInstance(context)
+
+    fun getAvailableOverlays(category: String): List<String> {
+        val engine = getThemeEngine() ?: return emptyList()
+        return try {
+            engine.getAvailableOverlays(category) ?: emptyList()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get available overlays", e)
+            emptyList()
+        }
+    }
+
+    fun notifyThemeChanged() {
+        val engine = getThemeEngine() ?: return
+        try {
+            engine.notifyThemeChanged(null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to notify theme changed", e)
+        }
+    }
 }
 
 data class ThemeEngineConfig(
@@ -464,7 +553,6 @@ data class ThemeEngineConfig(
     val iconTheme: String? = null,
     val iconThemeTargets: List<String> = emptyList(),
     val categoryThemes: Map<String, String> = emptyMap(),
-    val iconShape: String? = null
 )
 
 data class ThemeCategoryConfig(

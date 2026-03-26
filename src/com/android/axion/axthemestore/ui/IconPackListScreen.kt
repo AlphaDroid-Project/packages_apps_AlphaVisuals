@@ -22,10 +22,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,9 +34,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.*
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.axion.axthemestore.R
 import com.android.axion.axthemestore.engine.ThemeEngineProxy
 import com.android.axion.axthemestore.viewmodel.ThemeStoreViewModel
 import com.android.axion.axthemestore.ui.components.AppIconPackPreview
@@ -46,7 +50,7 @@ import kotlin.math.sin
 fun IconPackListScreen(
     viewModel: ThemeStoreViewModel
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
     LaunchedEffect(Unit) {
         viewModel.loadIconPacks()
@@ -58,7 +62,7 @@ fun IconPackListScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        "App Icon Packs",
+                        stringResource(R.string.app_icon_packs),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     ) 
@@ -110,7 +114,7 @@ private fun ThemedIconStyleSection(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         elevation = CardDefaults.elevatedCardElevation(
             defaultElevation = 2.dp
         )
@@ -127,25 +131,21 @@ private fun ThemedIconStyleSection(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Themed Icons",
+                        text = stringResource(R.string.themed_icons),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Monochrome icons that adapt to your wallpaper colors",
+                        text = stringResource(R.string.themed_icons_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Switch(
                     checked = enabled,
-                    onCheckedChange = onEnabledChange,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    onCheckedChange = onEnabledChange
                 )
             }
             
@@ -172,7 +172,7 @@ private fun ThemedIconStyleSection(
                     Spacer(modifier = Modifier.height(20.dp))
                     
                     Text(
-                        text = "Icon Style",
+                        text = stringResource(R.string.icon_style),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -192,73 +192,66 @@ private fun ThemedIconStyleSection(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    SingleChoiceSegmentedButtonRow(
+                    ButtonGroup(
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        SegmentedButton(
-                            selected = currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AXION,
-                            onClick = { onStyleChange(ThemeEngineProxy.Companion.ThemedIconStyle.AXION) },
-                            shape = RoundedCornerShape(
-                                topStart = 12.dp,
-                                bottomStart = 12.dp
-                            ),
-                            icon = {
-                                if (currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AXION) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
+                        val isAxion = currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AXION
+                        val isAosp = currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AOSP
+
+                        ToggleButton(
+                            checked = isAxion,
+                            onCheckedChange = { if (it) onStyleChange(ThemeEngineProxy.Companion.ThemedIconStyle.AXION) },
+                            shapes = ButtonGroupDefaults.connectedLeadingButtonShapes()
                         ) {
+                            if (isAxion) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.padding(vertical = 8.dp)
                             ) {
                                 Text(
-                                    text = "AxIcons",
+                                    text = stringResource(R.string.axicons),
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AXION) 
-                                        FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (isAxion) FontWeight.Bold else FontWeight.Medium
                                 )
                                 Text(
-                                    text = "Neutral",
+                                    text = stringResource(R.string.neutral),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
-                        
-                        SegmentedButton(
-                            selected = currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AOSP,
-                            onClick = { onStyleChange(ThemeEngineProxy.Companion.ThemedIconStyle.AOSP) },
-                            shape = RoundedCornerShape(
-                                topEnd = 12.dp,
-                                bottomEnd = 12.dp
-                            ),
-                            icon = {
-                                if (currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AOSP) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
+
+                        ToggleButton(
+                            checked = isAosp,
+                            onCheckedChange = { if (it) onStyleChange(ThemeEngineProxy.Companion.ThemedIconStyle.AOSP) },
+                            shapes = ButtonGroupDefaults.connectedTrailingButtonShapes()
                         ) {
+                            if (isAosp) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.padding(vertical = 8.dp)
                             ) {
                                 Text(
-                                    text = "AOSP",
+                                    text = stringResource(R.string.aosp),
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AOSP) 
-                                        FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (isAosp) FontWeight.Bold else FontWeight.Medium
                                 )
                                 Text(
-                                    text = "Accent",
+                                    text = stringResource(R.string.accent),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -309,7 +302,7 @@ private fun PreviewIcon(isAxIcons: Boolean, type: IconType) {
     Box(
         modifier = Modifier
             .size(52.dp)
-            .clip(RoundedCornerShape(28.dp))
+            .clip(MaterialTheme.shapes.large)
             .background(bgColor),
         contentAlignment = Alignment.Center
     ) {
@@ -334,9 +327,9 @@ private fun PreviewIcon(isAxIcons: Boolean, type: IconType) {
                         cubicTo(w * 0.8f, h * 0.2f, w * 0.75f, h * 0.15f, w * 0.65f, h * 0.15f)
                         close()
                     }
-                    drawPath(path, fgColor.toArgb().let { Color(it) }, style = Stroke(strokeWidth))
+                    drawPath(path, fgColor, style = Stroke(strokeWidth))
                     drawCircle(
-                        fgColor.toArgb().let { Color(it) },
+                        fgColor,
                         radius = canvasSize * 0.05f,
                         center = Offset(canvasSize * 0.5f, canvasSize * 0.75f)
                     )
@@ -358,24 +351,24 @@ private fun PreviewIcon(isAxIcons: Boolean, type: IconType) {
                         cubicTo(w * 0.2f, h * 0.75f, w * 0.15f, h * 0.7f, w * 0.15f, h * 0.6f)
                         close()
                     }
-                    drawPath(path, fgColor.toArgb().let { Color(it) })
+                    drawPath(path, fgColor)
                 }
                 IconType.CAMERA -> {
                     drawRoundRect(
-                        fgColor.toArgb().let { Color(it) },
+                        fgColor,
                         topLeft = Offset(canvasSize * 0.15f, canvasSize * 0.3f),
                         size = Size(canvasSize * 0.7f, canvasSize * 0.5f),
                         cornerRadius = CornerRadius(canvasSize * 0.08f),
                         style = Stroke(strokeWidth)
                     )
                     drawCircle(
-                        fgColor.toArgb().let { Color(it) },
+                        fgColor,
                         radius = canvasSize * 0.15f,
                         center = Offset(canvasSize * 0.5f, canvasSize * 0.55f),
                         style = Stroke(strokeWidth)
                     )
                     drawRect(
-                        fgColor.toArgb().let { Color(it) },
+                        fgColor,
                         topLeft = Offset(canvasSize * 0.35f, canvasSize * 0.2f),
                         size = Size(canvasSize * 0.3f, canvasSize * 0.1f)
                     )
@@ -401,9 +394,9 @@ private fun PreviewIcon(isAxIcons: Boolean, type: IconType) {
                     }
                     path.close()
                     
-                    drawPath(path, fgColor.toArgb().let { Color(it) })
+                    drawPath(path, fgColor)
                     drawCircle(
-                        bgColor.toArgb().let { Color(it) },
+                        bgColor,
                         radius = canvasSize * 0.12f,
                         center = Offset(centerX, centerY)
                     )
@@ -424,7 +417,7 @@ private fun IconPackDetailCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
@@ -462,7 +455,7 @@ private fun IconPackDetailCard(
                     )
                 } else {
                     Text(
-                        text = "Default system icon pack",
+                        text = stringResource(R.string.default_system_icon_pack),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -485,14 +478,14 @@ private fun IconPackDetailCard(
                             contentDescription = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Active")
+                        Text(stringResource(R.string.active))
                     }
                 } else {
                     Button(
                         onClick = onApplyClick,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Apply")
+                        Text(stringResource(R.string.apply))
                     }
                 }
             }
