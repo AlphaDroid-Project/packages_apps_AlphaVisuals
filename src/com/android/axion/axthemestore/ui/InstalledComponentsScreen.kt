@@ -100,18 +100,6 @@ fun InstalledComponentsScreen(
                 }
             }
             
-            item {
-                SectionHeader(title = stringResource(R.string.ui_style))
-            }
-            item {
-                ComponentCard(
-                    componentName = "UI Style",
-                    packageOrId = uiStyle.value ?: stringResource(R.string.default_ui_style),
-                    icon = Icons.Default.Palette,
-                    isBuiltIn = true
-                )
-            }
-            
             if (categoryThemes.isNotEmpty()) {
                 item {
                     SectionHeader(title = stringResource(R.string.icon_theme_components))
