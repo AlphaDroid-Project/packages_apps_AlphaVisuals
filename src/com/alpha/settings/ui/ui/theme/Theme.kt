@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-package com.android.axion.axthemestore.ui.theme
+package com.alpha.settings.ui.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import com.android.axion.compose.theme.AxionTheme
 
 @Composable
-fun AxThemeStoreTheme(
+fun AlphaVisualsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {

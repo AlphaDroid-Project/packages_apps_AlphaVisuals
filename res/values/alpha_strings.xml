@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Themes</string>
+    <string name="app_name">AlphaVisuals</string>
 
 <string name="system_themes_title">System Themes</string>
     <string name="system_icons_title">System Icons</string>
@@ -14,6 +14,17 @@
     <string name="theme_name_hint">Give your theme a name to identify it later</string>
     <string name="section_wifi_icons">Wi-Fi Icons</string>
     <string name="section_signal_icons">Cellular Signal Icons</string>
+    <string name="section_icon_packs">Icon packs</string>
+    <string name="section_back_gesture">Back gesture</string>
+    <string name="section_charging_animation">Charging animation</string>
+    <string name="section_battery_style">Battery style</string>
+    <string name="section_navbar">Navbar style</string>
+    <string name="section_lockscreen_clock_font">Lockscreen clock font</string>
+    <string name="section_system_font">System font</string>
+    <!-- Clock font previews (ThemePicker-style: thumbnail vs detail hero) -->
+    <string name="clock_font_preview_thumbnail" translatable="false">Aa</string>
+    <string name="clock_font_preview_detail_title">ABC • abc • 123</string>
+    <string name="clock_font_preview_detail_body">Lock screen clock</string>
     <string name="wifi_icons_desc">Replace the 5 Wi-Fi signal strength indicators shown in the status bar</string>
     <string name="signal_icons_desc">Replace the 5 cellular signal strength indicators shown in the status bar</string>
     <string name="current_icons_label">CURRENT</string>
@@ -54,6 +65,11 @@
     <string name="no_icon_themes_installed">No Icon Themes Installed</string>
     <string name="browse_for_icon_themes">Browse the theme store to install icon themes</string>
     <string name="active">Active</string>
+    <string name="state_enabled">Enabled</string>
+    <string name="state_disabled">Disabled</string>
+    <string name="state_partially_enabled">Partially enabled</string>
+    <string name="target_line">Target: %1$s</string>
+    <string name="by_author">by %1$s</string>
 
     <string name="app_icon_packs">App Icon Packs</string>
     <string name="themed_icons">Themed Icons</string>
@@ -69,6 +85,7 @@
     <string name="install">Install</string>
     <string name="apply">Apply</string>
     <string name="apply_changes">Apply Changes</string>
+    <string name="enable">Enable</string>
     <string name="disable">Disable</string>
     <string name="uninstall">Uninstall</string>
     <string name="resume_installation">Resume Installation</string>
@@ -84,8 +101,10 @@
     <string name="back">Back</string>
     <string name="search">Search</string>
     <string name="refresh">Refresh</string>
+    <string name="theme_store_reset">Reset styles</string>
+    <string name="theme_store_reset_message">This will reset all styles to their defaults. You may need to restart SystemUI for all changes to take effect. Do you wish to continue?</string>
+    <string name="theme_store_reset_yes">Yes</string>
+    <string name="theme_store_reset_cancel">Cancel</string>
     <string name="remove">Remove</string>
     <string name="clear">Clear</string>
-
-    <string name="default_ui_style">Default (Axion)</string>
 </resources>

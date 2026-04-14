@@ -15,8 +15,7 @@
  */
 
 @file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
-
-package com.android.axion.axthemestore.ui
+package com.alpha.settings.ui.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.*

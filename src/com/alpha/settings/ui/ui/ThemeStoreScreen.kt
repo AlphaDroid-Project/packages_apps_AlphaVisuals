@@ -15,8 +15,8 @@
  */
 
 @file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+package com.alpha.settings.ui.ui
 
-package com.android.axion.axthemestore.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn

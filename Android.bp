@@ -1,5 +1,6 @@
 android_app {
-    name: "AxThemeStore",
+    name: "AlphaVisuals",
+    enabled: true,
     manifest: "AndroidManifest.xml",
 
     defaults: [
@@ -17,11 +18,12 @@ android_app {
     system_ext_specific: true,
 
     required: [
-        "privapp-permissions-axthemestore",
+        "privapp-permissions-alpha-visuals",
     ],
 
     optimize: {
         enabled: true,
+        proguard_flags_files: ["proguard.flags"],
     },
     
     use_embedded_native_libs: true,
@@ -63,9 +65,10 @@ android_app {
 }
 
 prebuilt_etc {
-    name: "privapp-permissions-axthemestore",
+    name: "privapp-permissions-alpha-visuals",
+    enabled: true,
     system_ext_specific: true,
-    src: "privapp-permissions-axthemestore.xml",
+    src: "privapp-permissions-alpha-visuals.xml",
     sub_dir: "permissions",
     filename_from_src: true,
 }

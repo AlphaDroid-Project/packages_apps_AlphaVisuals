@@ -14,7 +14,7 @@
  * limitations under the License.
 */
 
-package com.android.axion.axthemestore.data.model
+package com.alpha.settings.ui.data.model
 
 import android.graphics.drawable.Drawable
 

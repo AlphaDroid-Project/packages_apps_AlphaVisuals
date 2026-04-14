@@ -14,7 +14,7 @@
  * limitations under the License.
 */
 
-package com.android.axion.axthemestore.ui
+package com.alpha.settings.ui.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,9 +31,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.axion.axthemestore.R
-import com.android.axion.axthemestore.engine.ThemeEngineProxy
-import com.android.axion.axthemestore.viewmodel.ThemeStoreViewModel
+import com.alpha.settings.ui.R
+import com.alpha.settings.ui.engine.ThemeEngineProxy
+import com.alpha.settings.ui.viewmodel.ThemeStoreViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 AlphaDroid
+# SPDX-License-Identifier: Apache-2.0
+
+# Gson reflects into overlay catalog DTOs; R8 can break field binding for keys like "author".
+-keepattributes Signature
+-keep class com.alpha.settings.ui.data.catalog.** { *; }

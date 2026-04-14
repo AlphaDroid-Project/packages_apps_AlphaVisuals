@@ -15,7 +15,7 @@
 */
 @file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 
-package com.android.axion.axthemestore.ui
+package com.alpha.settings.ui.ui
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -39,10 +39,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.axion.axthemestore.R
-import com.android.axion.axthemestore.engine.ThemeEngineProxy
-import com.android.axion.axthemestore.viewmodel.ThemeStoreViewModel
-import com.android.axion.axthemestore.ui.components.AppIconPackPreview
+import com.alpha.settings.ui.R
+import com.alpha.settings.ui.engine.ThemeEngineProxy
+import com.alpha.settings.ui.viewmodel.ThemeStoreViewModel
+import com.alpha.settings.ui.ui.components.AppIconPackPreview
 import kotlin.math.cos
 import kotlin.math.sin
 

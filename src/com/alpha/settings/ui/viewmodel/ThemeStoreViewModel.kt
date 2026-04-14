@@ -14,24 +14,21 @@
  * limitations under the License.
 */
 
-package com.android.axion.axthemestore.viewmodel
+package com.alpha.settings.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.android.axion.axthemestore.data.model.IconPack
-import com.android.axion.axthemestore.data.model.Theme
-import com.android.axion.axthemestore.data.model.ThemeCategory
-import com.android.axion.axthemestore.data.model.ThemeInstallState
-import com.android.axion.axthemestore.data.model.ThemeOverlay
-import com.android.axion.axthemestore.data.repository.ThemeRepository
-import com.android.axion.axthemestore.download.ThemeDownloadManager
-import com.android.axion.axthemestore.engine.ThemeEngineProxy
-import com.android.axion.axthemestore.install.ThemeInstaller
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.*
+import com.alpha.settings.ui.data.model.IconPack
+import com.alpha.settings.ui.data.model.Theme
+import com.alpha.settings.ui.data.model.ThemeCategory
+import com.alpha.settings.ui.data.model.ThemeInstallState
+import com.alpha.settings.ui.data.repository.ThemeRepository
+import com.alpha.settings.ui.engine.ThemeEngineProxy
 
 class ThemeStoreViewModel(application: Application) : AndroidViewModel(application) {
     

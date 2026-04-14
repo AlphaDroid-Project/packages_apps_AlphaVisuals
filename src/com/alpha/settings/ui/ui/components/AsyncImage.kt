@@ -16,7 +16,7 @@
 
 @file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
-package com.android.axion.axthemestore.ui.components
+package com.alpha.settings.ui.ui.components
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory

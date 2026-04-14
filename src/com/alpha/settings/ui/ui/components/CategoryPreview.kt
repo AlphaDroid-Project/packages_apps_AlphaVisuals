@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.axion.axthemestore.ui.components
+package com.alpha.settings.ui.ui.components
 
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -48,7 +48,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import com.android.axion.axthemestore.R
+import com.alpha.settings.ui.R
 import kotlin.math.min
 
 private data class BatteryShapeSpec(

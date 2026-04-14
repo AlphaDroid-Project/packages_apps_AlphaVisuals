@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.axion.axthemestore
+package com.alpha.settings.ui
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -25,9 +25,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.android.axion.axthemestore.ui.MainScreen
-import com.android.axion.axthemestore.ui.theme.AxThemeStoreTheme
-import com.android.axion.axthemestore.viewmodel.ThemeStoreViewModel
+import com.alpha.settings.ui.ui.MainScreen
+import com.alpha.settings.ui.ui.theme.AlphaVisualsTheme
+import com.alpha.settings.ui.viewmodel.ThemeStoreViewModel
 
 class MainActivity : ComponentActivity() {
     
@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            AxThemeStoreTheme {
+            AlphaVisualsTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

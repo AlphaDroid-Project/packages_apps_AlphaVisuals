@@ -14,7 +14,7 @@
  * limitations under the License.
 */
 
-package com.android.axion.axthemestore.ui.components
+package com.alpha.settings.ui.ui.components
 
 import android.content.Context
 import android.content.pm.PackageManager

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.axion.axthemestore.ui
+package com.alpha.settings.ui.ui
 
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
@@ -64,8 +64,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.android.axion.axthemestore.R
-import com.android.axion.axthemestore.viewmodel.ThemeStoreViewModel
+import com.alpha.settings.ui.R
+import com.alpha.settings.ui.viewmodel.ThemeStoreViewModel
 
 private const val CATEGORY_SIGNAL = "android.theme.customization.signal_icon"
 private const val CATEGORY_WIFI = "android.theme.customization.wifi_icon"

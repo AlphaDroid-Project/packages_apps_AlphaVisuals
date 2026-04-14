@@ -14,16 +14,16 @@
  * limitations under the License.
 */
 
-package com.android.axion.axthemestore.data.repository
+package com.alpha.settings.ui.data.repository
 
 import android.content.Context
 import android.content.pm.PackageManager
 import android.util.Log
-import com.android.axion.axthemestore.data.model.Theme
-import com.android.axion.axthemestore.data.model.ThemeCategory
-import com.android.axion.axthemestore.data.model.ThemeComponent
-import com.android.axion.axthemestore.data.model.ThemeOverlay
-import com.android.axion.axthemestore.data.model.ThemesResponse
+import com.alpha.settings.ui.data.model.Theme
+import com.alpha.settings.ui.data.model.ThemeCategory
+import com.alpha.settings.ui.data.model.ThemeComponent
+import com.alpha.settings.ui.data.model.ThemeOverlay
+import com.alpha.settings.ui.data.model.ThemesResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
