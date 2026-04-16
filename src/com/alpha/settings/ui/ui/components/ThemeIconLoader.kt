@@ -18,24 +18,22 @@ package com.alpha.settings.ui.ui.components
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffColorFilter
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.*
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -45,53 +43,81 @@ import kotlinx.coroutines.withContext
 
 object ThemeIconLoader {
     private const val TAG = "ThemeIconLoader"
-    
+
+    /** Status / QS names + ThemePicker-style overlay targets (`com_android_*`, navbar, etc.). */
+    private val THEME_ICON_CANDIDATE_NAMES =
+        listOf(
+            "stat_sys_wifi_signal_4",
+            "ic_wifi_signal_4",
+            "stat_sys_signal_cellular_4_4_bar",
+            "ic_signal_cellular_4_4_bar",
+            "ic_qs_bluetooth",
+            "ic_qs_flashlight",
+            "ic_qs_airplane",
+            "ic_qs_wifi_3",
+            "ic_qs_dnd",
+            "ic_settings",
+            "ic_launcher",
+            // Icon overlay packs often ship only app-target glyphs (no QS art).
+            "com_android_settings",
+            "com_android_systemui",
+            "com_android_launcher3",
+            "com_google_android_apps_nbu_files",
+            "com_android_chrome",
+            "com_google_android_gm",
+            "com_android_dialer",
+            "com_android_mms",
+            "ic_sysbar_home",
+            "ic_sysbar_back",
+            "ic_sysbar_recent",
+            "ic_android",
+            "ic_apps",
+            "settings",
+            "chrome",
+            "browser",
+        ).distinct()
+
+    private val THEME_ICON_MIPMAP_CANDIDATES = listOf(
+        "ic_launcher",
+        "ic_launcher_round",
+        "adaptiveproduct_settings",
+    )
+
     suspend fun loadThemeIcons(context: Context, packageName: String): List<Drawable> = 
         withContext(Dispatchers.IO) {
             val icons = mutableListOf<Drawable>()
+            val usedResIds = mutableSetOf<Int>()
             
             try {
                 val pm = context.packageManager
                 val resources = pm.getResourcesForApplication(packageName)
+
+                fun tryAddResId(resId: Int): Boolean {
+                    if (icons.size >= 6 || resId == 0 || resId in usedResIds) return false
+                    val drawable = try {
+                        resources.getDrawable(resId, null)
+                    } catch (_: Exception) {
+                        null
+                    } ?: return false
+                    usedResIds.add(resId)
+                    icons.add(drawable)
+                    return true
+                }
+
+                fun tryAddName(iconName: String, defType: String = "drawable") {
+                    if (icons.size >= 6) return
+                    val resId = resources.getIdentifier(iconName, defType, packageName)
+                    tryAddResId(resId)
+                }
                 
-                val commonIconNames = listOf(
-                    "stat_sys_wifi_signal_4",
-                    "ic_wifi_signal_4",
-                    "stat_sys_signal_cellular_4_4_bar",
-                    "ic_signal_cellular_4_4_bar",
-                    "ic_qs_bluetooth",
-                    "ic_qs_flashlight",
-                    "ic_qs_airplane",
-                    "ic_settings",
-                    "ic_launcher"
-                )
-                
-                for (iconName in commonIconNames) {
+                for (iconName in THEME_ICON_CANDIDATE_NAMES) {
                     if (icons.size >= 6) break
-                    
-                    try {
-                        val resId = resources.getIdentifier(iconName, "drawable", packageName)
-                        if (resId != 0) {
-                            val typedValue = android.util.TypedValue()
-                            resources.getValue(resId, typedValue, true)
-                            
-                            val drawable = if (typedValue.string?.toString()?.endsWith(".xml") == true) {
-                                Drawable.createFromXml(resources, resources.getXml(resId))
-                            } else {
-                                resources.openRawResource(resId).use { inputStream ->
-                                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                                    if (bitmap != null) {
-                                        BitmapDrawable(resources, bitmap)
-                                    } else null
-                                }
-                            }
-                            
-                            if (drawable != null) {
-                                icons.add(drawable)
-                            }
-                        }
-                    } catch (e: Exception) {
-                    }
+                    tryAddName(iconName)
+                }
+
+                for (mipmapName in THEME_ICON_MIPMAP_CANDIDATES) {
+                    if (icons.size >= 6) break
+                    tryAddName(mipmapName, "mipmap")
                 }
                 
                 if (icons.size < 6) {
@@ -113,42 +139,47 @@ object ThemeIconLoader {
                                 
                                 for (drawableName in shuffledNames) {
                                     if (icons.size >= 6) break
-                                    
-                                    try {
-                                        val resId = resources.getIdentifier(drawableName, "drawable", packageName)
-                                        if (resId != 0) {
-                                            val typedValue = android.util.TypedValue()
-                                            resources.getValue(resId, typedValue, true)
-                                            
-                                            val drawable = if (typedValue.string?.toString()?.endsWith(".xml") == true) {
-                                                Drawable.createFromXml(resources, resources.getXml(resId))
-                                            } else {
-                                                resources.openRawResource(resId).use { inputStream ->
-                                                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                                                    if (bitmap != null) {
-                                                        BitmapDrawable(resources, bitmap)
-                                                    } else null
-                                                }
-                                            }
-                                            
-                                            if (drawable != null && !icons.contains(drawable)) {
-                                                icons.add(drawable)
-                                            }
-                                        }
-                                    } catch (e: Exception) {
-                                    }
+                                    tryAddName(drawableName)
                                 }
                             }
                         } catch (e: Exception) {
                         }
                     }
                 }
+
+                if (icons.size < 6) {
+                    try {
+                        val drawableClass = Class.forName("$packageName.R\$drawable")
+                        val iconFields = drawableClass.fields.filter { field ->
+                            val name = field.name.lowercase()
+                            !name.startsWith("ic_launcher") &&
+                                !name.startsWith("abc_") &&
+                                !name.startsWith("notification_") &&
+                                !name.contains("background") &&
+                                !name.contains("foreground")
+                        }.shuffled()
+                        for (field in iconFields) {
+                            if (icons.size >= 6) break
+                            try {
+                                val resId = field.getInt(null)
+                                tryAddResId(resId)
+                            } catch (_: Exception) {
+                            }
+                        }
+                    } catch (_: ClassNotFoundException) {
+                        Log.d(TAG, "R.drawable not found for $packageName")
+                    }
+                }
                 
                 if (icons.isEmpty()) {
                     try {
                         val appInfo = pm.getApplicationInfo(packageName, 0)
-                        val appIcon = pm.getApplicationIcon(appInfo)
-                        icons.add(appIcon)
+                        if (appInfo.icon != 0) {
+                            tryAddResId(appInfo.icon)
+                        }
+                        if (icons.isEmpty()) {
+                            icons.add(pm.getApplicationIcon(appInfo))
+                        }
                     } catch (e: Exception) {
                         Log.d(TAG, "Could not load app icon for $packageName")
                     }
@@ -168,6 +199,7 @@ object ThemeIconLoader {
     suspend fun loadAppIconPackIcons(context: Context, packageName: String): List<Drawable> = 
         withContext(Dispatchers.IO) {
             val icons = mutableListOf<Drawable>()
+            val usedResIds = mutableSetOf<Int>()
             
             try {
                 val pm = context.packageManager
@@ -195,9 +227,10 @@ object ThemeIconLoader {
                     for (iconName in appNames) {
                         try {
                             val resId = resources.getIdentifier(iconName, "drawable", packageName)
-                            if (resId != 0) {
+                            if (resId != 0 && resId !in usedResIds) {
                                 val drawable = resources.getDrawable(resId, null)
                                 if (drawable != null) {
+                                    usedResIds.add(resId)
                                     icons.add(drawable)
                                     foundIcon = true
                                     break
@@ -229,9 +262,10 @@ object ThemeIconLoader {
                             
                             try {
                                 val resId = field.getInt(null)
-                                if (resId != 0) {
+                                if (resId != 0 && resId !in usedResIds) {
                                     val drawable = resources.getDrawable(resId, null)
-                                    if (drawable != null && !icons.contains(drawable)) {
+                                    if (drawable != null) {
+                                        usedResIds.add(resId)
                                         icons.add(drawable)
                                     }
                                 }
@@ -246,8 +280,19 @@ object ThemeIconLoader {
                 if (icons.isEmpty()) {
                     try {
                         val appInfo = pm.getApplicationInfo(packageName, 0)
-                        val appIcon = pm.getApplicationIcon(appInfo)
-                        icons.add(appIcon)
+                        if (appInfo.icon != 0 && appInfo.icon !in usedResIds) {
+                            try {
+                                val drawable = resources.getDrawable(appInfo.icon, null)
+                                if (drawable != null) {
+                                    usedResIds.add(appInfo.icon)
+                                    icons.add(drawable)
+                                }
+                            } catch (_: Exception) {
+                            }
+                        }
+                        if (icons.isEmpty()) {
+                            icons.add(pm.getApplicationIcon(appInfo))
+                        }
                     } catch (e: Exception) {
                         Log.d(TAG, "Could not load app icon for $packageName")
                     }
@@ -310,34 +355,62 @@ suspend fun loadSystemDefaultIcons(context: Context): List<Drawable> =
 fun ThemePackagePreview(
     packageName: String,
     modifier: Modifier = Modifier,
-    showSingleIcon: Boolean = false
+    showSingleIcon: Boolean = false,
+    useAccentBackground: Boolean = true,
+    /** When true, compact single-icon preview uses the small accent plate (Wi‑Fi / signal style). */
+    useCompactSignalStyle: Boolean = true,
+    /** Main-list single-icon size ([PreviewDimensions.MainListIconSize]). */
+    singleIconSize: Dp = PreviewDimensions.MainListIconSize,
 ) {
     val context = LocalContext.current
-    var icons by remember(packageName) { mutableStateOf<List<Drawable>>(emptyList()) }
-    
-    LaunchedEffect(packageName) {
-        icons = ThemeIconLoader.loadThemeIcons(context, packageName)
+    val density = LocalDensity.current
+    val maxSinglePx = with(density) { singleIconSize.roundToPx() }
+    val maxGridPx = with(density) { 48.dp.roundToPx() }
+    var bitmaps by remember(packageName) { mutableStateOf<List<Bitmap>>(emptyList()) }
+
+    LaunchedEffect(packageName, showSingleIcon) {
+        bitmaps = withContext(Dispatchers.IO) {
+            val icons = ThemeIconLoader.loadThemeIcons(context, packageName)
+            val maxPx = if (showSingleIcon) maxSinglePx else maxGridPx
+            icons.take(if (showSingleIcon) 1 else 6).mapNotNull { d ->
+                runCatching { d.toBitmapForPreview(maxPx) }.getOrNull()
+            }
+        }
     }
-    
+
+    val singleIconSignalStyle =
+        showSingleIcon && useAccentBackground && useCompactSignalStyle
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        MaterialTheme.colorScheme.primaryContainer
+            .then(
+                if (singleIconSignalStyle) {
+                    Modifier
+                } else if (useAccentBackground) {
+                    Modifier.background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
                     )
-                )
+                } else {
+                    Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)
+                }
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (icons.isNotEmpty()) {
+        if (bitmaps.isNotEmpty()) {
             if (showSingleIcon) {
-                DrawableIcon(
-                    drawable = icons.first(),
-                    size = 36.dp,
-                    tint = MaterialTheme.colorScheme.primary
+                val iconDp = singleIconSize
+                Image(
+                    bitmap = bitmaps.first().asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(iconDp),
+                    contentScale = ContentScale.Fit,
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
                 )
             } else {
                 Row(
@@ -347,94 +420,100 @@ fun ThemePackagePreview(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    icons.take(6).forEach { drawable ->
-                        DrawableIcon(
-                            drawable = drawable,
-                            size = 48.dp,
-                            tint = MaterialTheme.colorScheme.primary
+                    bitmaps.forEach { bmp ->
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            contentScale = ContentScale.Fit,
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
                         )
                     }
                 }
             }
+        } else {
+            Icon(
+                imageVector = Icons.Filled.Extension,
+                contentDescription = null,
+                modifier = Modifier.then(
+                    if (showSingleIcon) Modifier.size(singleIconSize * 0.58f) else Modifier.size(40.dp),
+                ),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+            )
         }
     }
 }
 
-@Composable
-private fun DrawableIcon(
-    drawable: Drawable,
-    size: Dp,
-    tint: Color
-) {
-    val density = LocalDensity.current
-    val bitmap = remember(drawable, size) {
-        drawable.toBitmap(
-            width = with(density) { size.toPx().toInt() },
-            height = with(density) { size.toPx().toInt() }
-        )
+private fun Drawable.toBitmapForPreview(maxSidePx: Int): Bitmap {
+    val iw = intrinsicWidth
+    val ih = intrinsicHeight
+    return if (iw > 0 && ih > 0) {
+        val scale = maxSidePx.toFloat() / maxOf(iw, ih)
+        val w = (iw * scale).toInt().coerceAtLeast(1)
+        val h = (ih * scale).toInt().coerceAtLeast(1)
+        toBitmap(w, h)
+    } else {
+        toBitmap(maxSidePx, maxSidePx)
     }
-    
-    val tintedBitmap = remember(bitmap, tint) {
-        val paint = Paint().apply {
-            colorFilter = PorterDuffColorFilter(
-                tint.toArgb(),
-                PorterDuff.Mode.SRC_IN
-            )
-        }
-        
-        val result = Bitmap.createBitmap(
-            bitmap.width,
-            bitmap.height,
-            Bitmap.Config.ARGB_8888
-        )
-        
-        val canvas = Canvas(result)
-        canvas.drawBitmap(bitmap, 0f, 0f, paint)
-        result
-    }
-    
-    Image(
-        bitmap = tintedBitmap.asImageBitmap(),
-        contentDescription = null,
-        modifier = Modifier.size(size)
-    )
 }
 
 @Composable
 fun AppIconPackPreview(
     packageName: String,
     modifier: Modifier = Modifier,
-    showSingleIcon: Boolean = false
+    showSingleIcon: Boolean = false,
+    useAccentBackground: Boolean = true,
 ) {
     val context = LocalContext.current
-    var icons by remember(packageName) { mutableStateOf<List<Drawable>>(emptyList()) }
-    
-    LaunchedEffect(packageName) {
-        icons = if (packageName.isEmpty()) {
-            loadSystemDefaultIcons(context)
-        } else {
-            ThemeIconLoader.loadAppIconPackIcons(context, packageName)
+    val density = LocalDensity.current
+    val singlePx = with(density) { PreviewDimensions.MainListIconSize.roundToPx() }
+    val gridPx = with(density) { 48.dp.roundToPx() }
+    var bitmaps by remember(packageName) { mutableStateOf<List<Bitmap>>(emptyList()) }
+
+    LaunchedEffect(packageName, showSingleIcon) {
+        bitmaps = withContext(Dispatchers.IO) {
+            val icons = if (packageName.isEmpty()) {
+                loadSystemDefaultIcons(context)
+            } else {
+                ThemeIconLoader.loadAppIconPackIcons(context, packageName)
+            }
+            val maxPx = if (showSingleIcon) singlePx else gridPx
+            icons.take(if (showSingleIcon) 1 else 6).mapNotNull { d ->
+                runCatching { d.toBitmapForPreview(maxPx) }.getOrNull()
+            }
         }
     }
-    
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        MaterialTheme.colorScheme.primaryContainer
+            .then(
+                if (useAccentBackground) {
+                    Modifier.background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
                     )
-                )
+                } else {
+                    Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)
+                }
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (icons.isNotEmpty()) {
+        if (bitmaps.isNotEmpty()) {
             if (showSingleIcon) {
-                AppIcon(
-                    drawable = icons.first(),
-                    size = 36.dp
+                val iconDp = PreviewDimensions.MainListIconSize
+                Image(
+                    bitmap = bitmaps.first().asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(iconDp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Fit,
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
                 )
             } else {
                 Row(
@@ -444,36 +523,19 @@ fun AppIconPackPreview(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    icons.take(6).forEach { drawable ->
-                        AppIcon(
-                            drawable = drawable,
-                            size = 48.dp
+                    bitmaps.forEach { bmp ->
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Fit,
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
                         )
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun AppIcon(
-    drawable: Drawable,
-    size: Dp
-) {
-    val density = LocalDensity.current
-    val bitmap = remember(drawable, size) {
-        drawable.toBitmap(
-            width = with(density) { size.toPx().toInt() },
-            height = with(density) { size.toPx().toInt() }
-        )
-    }
-    
-    Image(
-        bitmap = bitmap.asImageBitmap(),
-        contentDescription = null,
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(12.dp))
-    )
 }

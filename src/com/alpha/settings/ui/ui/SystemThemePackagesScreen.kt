@@ -63,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.alpha.settings.ui.R
 import com.alpha.settings.ui.viewmodel.ThemeStoreViewModel
@@ -224,7 +225,12 @@ private fun OverlayPackCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = item.label, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = item.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     if (item.isActive) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(

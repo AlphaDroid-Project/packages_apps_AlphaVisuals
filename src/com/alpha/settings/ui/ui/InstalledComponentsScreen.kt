@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.*
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.alpha.settings.ui.R
@@ -42,7 +43,14 @@ fun InstalledComponentsScreen(
     onBackClick: () -> Unit
 ) {
     val categoryThemes by viewModel.categoryThemesState.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val iconTheme = remember { mutableStateOf<String?>(null) }
+
+    val filteredCategoryThemes = remember(categoryThemes, uiState.categories) {
+        val all = uiState.categories
+        val browse = browseCategoriesUpToBatteryStyle(all)
+        filterCategoryThemesForThemeStoreBrowse(categoryThemes, all, browse)
+    }
 
     LaunchedEffect(Unit) {
         val proxy = ThemeEngineProxy(viewModel.getApplication())
@@ -98,12 +106,12 @@ fun InstalledComponentsScreen(
                 }
             }
             
-            if (categoryThemes.isNotEmpty()) {
+            if (filteredCategoryThemes.isNotEmpty()) {
                 item {
                     SectionHeader(title = stringResource(R.string.icon_theme_components))
                 }
                 
-                items(categoryThemes.entries.toList()) { (category, packageName) ->
+                items(filteredCategoryThemes.entries.toList()) { (category, packageName) ->
                     ComponentCard(
                         componentName = getCategoryDisplayName(category),
                         packageOrId = packageName,
@@ -111,7 +119,7 @@ fun InstalledComponentsScreen(
                         isBuiltIn = false
                     )
                 }
-            } else {
+            } else if (categoryThemes.isEmpty()) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -207,13 +215,17 @@ private fun ComponentCard(
                 Text(
                     text = componentName,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = if (isBuiltIn) packageOrId else packageOrId.substringAfterLast('.'),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             

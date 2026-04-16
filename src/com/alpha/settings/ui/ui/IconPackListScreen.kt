@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -179,15 +180,18 @@ private fun ThemedIconStyleSection(
                     )
                     
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
+                    val neutralStyleSelected =
+                        currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AXION
+                    val accentStyleSelected =
+                        currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AOSP
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        ThemedIconPreview(
-                            isAxIcons = currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AXION
-                        )
+                        ThemedIconPreview(useNeutralPalette = neutralStyleSelected)
                     }
                     
                     Spacer(modifier = Modifier.height(16.dp))
@@ -195,15 +199,12 @@ private fun ThemedIconStyleSection(
                     ButtonGroup(
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        val isAxion = currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AXION
-                        val isAosp = currentStyle == ThemeEngineProxy.Companion.ThemedIconStyle.AOSP
-
                         ToggleButton(
-                            checked = isAxion,
+                            checked = neutralStyleSelected,
                             onCheckedChange = { if (it) onStyleChange(ThemeEngineProxy.Companion.ThemedIconStyle.AXION) },
                             shapes = ButtonGroupDefaults.connectedLeadingButtonShapes()
                         ) {
-                            if (isAxion) {
+                            if (neutralStyleSelected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
@@ -218,7 +219,7 @@ private fun ThemedIconStyleSection(
                                 Text(
                                     text = stringResource(R.string.axicons),
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (isAxion) FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (neutralStyleSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                                 Text(
                                     text = stringResource(R.string.neutral),
@@ -229,11 +230,11 @@ private fun ThemedIconStyleSection(
                         }
 
                         ToggleButton(
-                            checked = isAosp,
+                            checked = accentStyleSelected,
                             onCheckedChange = { if (it) onStyleChange(ThemeEngineProxy.Companion.ThemedIconStyle.AOSP) },
                             shapes = ButtonGroupDefaults.connectedTrailingButtonShapes()
                         ) {
-                            if (isAosp) {
+                            if (accentStyleSelected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
@@ -248,7 +249,7 @@ private fun ThemedIconStyleSection(
                                 Text(
                                     text = stringResource(R.string.aosp),
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (isAosp) FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (accentStyleSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                                 Text(
                                     text = stringResource(R.string.accent),
@@ -266,16 +267,16 @@ private fun ThemedIconStyleSection(
 
 @Composable
 private fun ThemedIconPreview(
-    isAxIcons: Boolean
+    useNeutralPalette: Boolean
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        PreviewIcon(isAxIcons, IconType.PHONE)
-        PreviewIcon(isAxIcons, IconType.MESSAGES)
-        PreviewIcon(isAxIcons, IconType.CAMERA)
-        PreviewIcon(isAxIcons, IconType.SETTINGS)
+        PreviewIcon(useNeutralPalette, IconType.PHONE)
+        PreviewIcon(useNeutralPalette, IconType.MESSAGES)
+        PreviewIcon(useNeutralPalette, IconType.CAMERA)
+        PreviewIcon(useNeutralPalette, IconType.SETTINGS)
     }
 }
 
@@ -284,20 +285,20 @@ private enum class IconType {
 }
 
 @Composable
-private fun PreviewIcon(isAxIcons: Boolean, type: IconType) {
-    val bgColor = if (isAxIcons) {
+private fun PreviewIcon(useNeutralPalette: Boolean, type: IconType) {
+    val bgColor = if (useNeutralPalette) {
         MaterialTheme.colorScheme.surfaceContainerLowest
     } else {
         MaterialTheme.colorScheme.primaryContainer
     }
     
-    val fgColor = if (isAxIcons) {
+    val fgColor = if (useNeutralPalette) {
         MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.onPrimaryContainer
     }
     
-    val iconSize = if (isAxIcons) 22.dp else 28.dp
+    val iconSize = if (useNeutralPalette) 22.dp else 28.dp
     
     Box(
         modifier = Modifier
@@ -442,7 +443,9 @@ private fun IconPackDetailCard(
                 Text(
                     text = label,
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -451,13 +454,17 @@ private fun IconPackDetailCard(
                     Text(
                         text = packageName,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 } else {
                     Text(
                         text = stringResource(R.string.default_system_icon_pack),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 

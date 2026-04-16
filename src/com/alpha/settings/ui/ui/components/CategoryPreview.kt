@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import com.alpha.settings.ui.R
 import kotlin.math.min
 
@@ -92,7 +93,12 @@ private val BATTERY_SHAPES = mapOf(
 )
 
 @Composable
-fun BatteryStylePreview(packageName: String, modifier: Modifier = Modifier) {
+fun BatteryStylePreview(
+    packageName: String,
+    modifier: Modifier = Modifier,
+    /** When set (main list), paths are capped to this dp inside the slot; when null (detail), use full bounds. */
+    iconSize: Dp? = null,
+) {
     val shapeKey = packageName.substringAfterLast('.')
     val spec = BATTERY_SHAPES[shapeKey] ?: return
 
@@ -112,7 +118,16 @@ fun BatteryStylePreview(packageName: String, modifier: Modifier = Modifier) {
         modifier = modifier.drawWithContent {
             val vw = spec.viewportWidth
             val vh = spec.viewportHeight
-            val scale = min(size.width / vw, size.height / vh) * 0.75f
+            val capDp = iconSize
+            val targetPx = if (capDp != null) {
+                minOf(
+                    min(size.width, size.height),
+                    capDp.toPx(),
+                )
+            } else {
+                min(size.width, size.height)
+            }
+            val scale = min(targetPx / vw, targetPx / vh)
             val dx = (size.width - vw * scale) / 2f
             val dy = (size.height - vh * scale) / 2f
             val matrix = Matrix().apply { setScale(scale, scale); postTranslate(dx, dy) }
@@ -149,7 +164,9 @@ fun BatteryStylePreview(packageName: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun BackGesturePreview(modifier: Modifier = Modifier) {
+fun BackGesturePreview(
+    modifier: Modifier = Modifier,
+) {
     val dotColor = MaterialTheme.colorScheme.onSurface
     Box(
         modifier = modifier.drawWithContent {
@@ -277,7 +294,9 @@ private val NOTHING_FRAMES = listOf(
     R.drawable.preview_charging_nothing_ripple_41,
 )
 
-
+/**
+ * Detail / hero preview: animated Moto or Nothing charging look (bundled assets in AlphaVisuals).
+ */
 @Composable
 fun ChargingAnimationBannerPreview(packageName: String, modifier: Modifier = Modifier) {
     val style = packageName.substringAfterLast('.')
