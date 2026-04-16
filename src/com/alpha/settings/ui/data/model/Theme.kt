@@ -23,7 +23,14 @@ data class ThemesResponse(
     val lastUpdated: String = "",
     val themes: List<Theme> = emptyList(),
     val categories: List<ThemeCategory> = emptyList(),
-    val components: List<ThemeComponent> = emptyList()
+    val components: List<ThemeComponent> = emptyList(),
+    /** Authors keyed by `ui_style` id (e.g. system_default, outline); from catalog `ui_styles`. */
+    val uiStyles: List<UiStyleCatalogEntry> = emptyList(),
+)
+
+data class UiStyleCatalogEntry(
+    val id: String = "",
+    val author: String = "",
 )
 
 data class Theme(
@@ -64,6 +71,8 @@ data class ThemeOverlay(
     val packageName: String = "",
     val targetPackage: String = "",
     val targets: List<String> = emptyList(),
+    /** Display name for detail UI when set from overlay catalog. */
+    val label: String = "",
     val downloadUrl: String = "",
     val fileSize: Long = 0,
     val enabled: Boolean = true
@@ -87,22 +96,6 @@ sealed class ThemeInstallState {
     data object NotInstalled : ThemeInstallState()
     data class Installed(val installedVersionCode: Int) : ThemeInstallState()
     data class InstalledInactive(val installedVersionCode: Int) : ThemeInstallState()
-    data class PartiallyInstalled(
-        val installedOverlays: Set<String>,
-        val totalOverlays: Int
-    ) : ThemeInstallState()
-    data class Downloaded(val files: Map<String, java.io.File>) : ThemeInstallState()
-    data class Downloading(val progress: Float, val currentOverlay: String) : ThemeInstallState()
-    data object Installing : ThemeInstallState()
-    data class Error(val message: String) : ThemeInstallState()
-}
-
-sealed class OverlayInstallState {
-    data object NotInstalled : OverlayInstallState()
-    data object Installed : OverlayInstallState()
-    data class Downloading(val progress: Float) : OverlayInstallState()
-    data object Installing : OverlayInstallState()
-    data class Error(val message: String) : OverlayInstallState()
 }
 
 fun Theme.hasUpdate(installedVersionCode: Int): Boolean = versionCode > installedVersionCode

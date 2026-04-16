@@ -36,15 +36,32 @@ class ThemeEngineProxy(private val context: Context) {
         }
         private val workerHandler: Handler by lazy { Handler(workerThread.looper) }
 
+        /** Serialized enable after [applyOverlays] delay; cancelled when a new apply is scheduled. */
+        @Volatile
+        private var pendingOverlayEnable: Runnable? = null
+
+        private val pendingOverlayEnableLock = Any()
+
         const val SETTINGS_THEME_ENGINE_DATA = "theme_engine_data"
 
         private val SYNCED_OVERLAY_CATEGORIES = setOf(
             "android.theme.customization.icon_pack.android",
             "android.theme.customization.icon_pack.systemui",
+            "android.theme.customization.icon_pack.settings",
+            "android.theme.customization.icon_pack.launcher",
+            "android.theme.customization.icon_pack.themepicker",
             "android.theme.customization.back_gesture",
             "android.theme.customization.charging_animation",
             "android.theme.customization.battery_style",
+            "android.theme.customization.wifi_icon",
+            "android.theme.customization.signal_icon",
+            "android.theme.customization.font",
+            "android.theme.customization.lockscreen_clock_font",
         )
+
+        private const val OVERLAY_CATEGORY_WIFI = "android.theme.customization.wifi_icon"
+        private const val OVERLAY_CATEGORY_SIGNAL = "android.theme.customization.signal_icon"
+        private const val OVERLAY_CATEGORY_BATTERY = "android.theme.customization.battery_style"
 
         object Category {
             const val STATUSBAR_WIFI = "statusbar_wifi"
@@ -218,6 +235,7 @@ class ThemeEngineProxy(private val context: Context) {
             workerHandler.post {
                 applyOverlays(packageName, setOfNotNull(oldPackage?.takeIf { it != packageName }))
                 syncOverlayPackagesSettings(updated.categoryThemes)
+                syncThemeEngineStatusCategories(updated.categoryThemes)
             }
         }
         return saved
@@ -232,6 +250,7 @@ class ThemeEngineProxy(private val context: Context) {
             workerHandler.post {
                 applyOverlays(null, setOfNotNull(oldPackage))
                 syncOverlayPackagesSettings(updated.categoryThemes)
+                syncThemeEngineStatusCategories(updated.categoryThemes)
             }
         }
         return saved
@@ -251,7 +270,10 @@ class ThemeEngineProxy(private val context: Context) {
         val saved = saveThemeConfig(updated)
         if (saved) {
             syncOverlayPackagesSettings(updated.categoryThemes)
-            workerHandler.post { applyOverlays(packageName, oldPackages) }
+            workerHandler.post {
+                applyOverlays(packageName, oldPackages)
+                syncThemeEngineStatusCategories(updated.categoryThemes)
+            }
         }
         return saved
     }
@@ -264,6 +286,7 @@ class ThemeEngineProxy(private val context: Context) {
             workerHandler.post {
                 applyOverlays(null, setOf(packageName))
                 syncOverlayPackagesSettings(updated.categoryThemes)
+                syncThemeEngineStatusCategories(updated.categoryThemes)
             }
         }
         return saved
@@ -284,6 +307,9 @@ class ThemeEngineProxy(private val context: Context) {
 
     private fun applyOverlays(packageName: String?, oldPackages: Set<String>) {
         try {
+            synchronized(pendingOverlayEnableLock) {
+                pendingOverlayEnable?.let { workerHandler.removeCallbacks(it) }
+            }
             val om = context.getSystemService(OverlayManager::class.java) ?: return
             for (oldPkg in oldPackages) {
                 try {
@@ -293,15 +319,32 @@ class ThemeEngineProxy(private val context: Context) {
                     Log.w(TAG, "Failed to disable overlay: $oldPkg", e)
                 }
             }
-            packageName ?: return
-            workerHandler.postDelayed({
-                try {
-                    om.setEnabledExclusiveInCategory(packageName, UserHandle.SYSTEM)
-                    Log.d(TAG, "enabled overlay: $packageName")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to enable overlay: $packageName", e)
+            if (packageName == null) {
+                synchronized(pendingOverlayEnableLock) {
+                    pendingOverlayEnable = null
                 }
-            }, 500)
+                return
+            }
+            val enableTask = object : Runnable {
+                override fun run() {
+                    try {
+                        om.setEnabledExclusiveInCategory(packageName, UserHandle.SYSTEM)
+                        Log.d(TAG, "enabled overlay: $packageName")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to enable overlay: $packageName", e)
+                    } finally {
+                        synchronized(pendingOverlayEnableLock) {
+                            if (pendingOverlayEnable === this) {
+                                pendingOverlayEnable = null
+                            }
+                        }
+                    }
+                }
+            }
+            synchronized(pendingOverlayEnableLock) {
+                pendingOverlayEnable = enableTask
+            }
+            workerHandler.postDelayed(enableTask, 500)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to apply overlays for $packageName", e)
         }
@@ -331,6 +374,71 @@ class ThemeEngineProxy(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync overlay packages settings", e)
         }
+    }
+
+    private fun syncThemeEngineStatusCategories(categoryThemes: Map<String, String>) {
+        try {
+            val current = Settings.Secure.getString(
+                context.contentResolver,
+                SETTINGS_THEME_ENGINE_DATA
+            )
+            val root = if (current.isNullOrBlank()) JSONObject() else JSONObject(current)
+            val themes = root.optJSONObject("themes") ?: JSONObject()
+            val categoryObj = root.optJSONObject("categoryThemes") ?: JSONObject()
+
+            syncStatusCategory(
+                overlayCategory = OVERLAY_CATEGORY_WIFI,
+                engineKey = "wifi",
+                categoryThemes = categoryThemes,
+                themes = themes,
+                categoryObj = categoryObj
+            )
+            syncStatusCategory(
+                overlayCategory = OVERLAY_CATEGORY_SIGNAL,
+                engineKey = "signal",
+                categoryThemes = categoryThemes,
+                themes = themes,
+                categoryObj = categoryObj
+            )
+            syncStatusCategory(
+                overlayCategory = OVERLAY_CATEGORY_BATTERY,
+                engineKey = ThemeEngine.CATEGORY_BATTERY_STYLE,
+                categoryThemes = categoryThemes,
+                themes = themes,
+                categoryObj = categoryObj
+            )
+
+            root.put("themes", themes)
+            root.put("categoryThemes", categoryObj)
+            if (!root.has("version")) root.put("version", 1)
+            Settings.Secure.putString(context.contentResolver, SETTINGS_THEME_ENGINE_DATA, root.toString())
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync theme_engine_data status categories", e)
+        }
+    }
+
+    private fun syncStatusCategory(
+        overlayCategory: String,
+        engineKey: String,
+        categoryThemes: Map<String, String>,
+        themes: JSONObject,
+        categoryObj: JSONObject
+    ) {
+        val pkg = categoryThemes[overlayCategory]
+        if (pkg.isNullOrBlank()) {
+            themes.remove(engineKey)
+            categoryObj.remove(engineKey)
+            categoryObj.remove("statusbar_$engineKey")
+            return
+        }
+
+        val entry = JSONObject().apply {
+            put("enabled", true)
+            put("packageName", pkg)
+        }
+        themes.put(engineKey, entry)
+        categoryObj.put(engineKey, pkg)
+        categoryObj.put("statusbar_$engineKey", pkg)
     }
 
     fun setThemedIconStyle(style: String) {
@@ -365,6 +473,29 @@ class ThemeEngineProxy(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to notify theme changed", e)
         }
+    }
+
+    /**
+     * Clears theme engine settings and disables all overlay packages referenced by the previous config.
+     */
+    fun resetAllStylesToDefaults(): Boolean {
+        val config = getThemeConfig()
+        val packagesToDisable = LinkedHashSet<String>()
+        packagesToDisable.addAll(config.categoryThemes.values)
+        config.themes.values.forEach { cat ->
+            if (cat.enabled && !cat.packageName.isNullOrBlank()) {
+                packagesToDisable.add(cat.packageName!!)
+            }
+        }
+        val saved = saveThemeConfig(ThemeEngineConfig())
+        if (!saved) return false
+        workerHandler.post {
+            applyOverlays(null, packagesToDisable)
+            syncOverlayPackagesSettings(emptyMap())
+            syncThemeEngineStatusCategories(emptyMap())
+            notifyThemeChanged()
+        }
+        return true
     }
 }
 
