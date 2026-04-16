@@ -14,104 +14,250 @@
  * limitations under the License.
  */
 
-@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 package com.alpha.settings.ui.ui
 
-
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.lazy.*
-import androidx.compose.foundation.lazy.grid.*
-import androidx.compose.foundation.pager.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material3.*
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.axion.axthemestore.R
-import com.android.axion.axthemestore.data.model.Theme
-import com.android.axion.axthemestore.data.model.ThemeCategory
-import com.android.axion.axthemestore.data.model.ThemeInstallState
-import com.android.axion.axthemestore.engine.ThemeEngineProxy
-import com.android.axion.axthemestore.ui.components.AsyncNetworkImage
-import com.android.axion.axthemestore.ui.components.BackGesturePreview
-import com.android.axion.axthemestore.ui.components.BatteryStylePreview
-import com.android.axion.axthemestore.ui.components.ThemeCard
-import com.android.axion.axthemestore.ui.components.ImagePlaceholder
-import com.android.axion.axthemestore.ui.components.ThemePackagePreview
-import com.android.axion.axthemestore.viewmodel.ThemeStoreUiState
-import com.android.axion.axthemestore.viewmodel.ThemeStoreViewModel
+import com.alpha.settings.ui.R
+import com.alpha.settings.ui.data.model.Theme
+import com.alpha.settings.ui.data.model.ThemeInstallState
+import com.alpha.settings.ui.ui.components.PreviewDimensions
+import com.alpha.settings.ui.ui.components.ThemeStoreItemPreview
+import com.alpha.settings.ui.viewmodel.ThemeStoreViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThemeStoreScreen(
     viewModel: ThemeStoreViewModel,
     onThemeClick: (Theme) -> Unit,
-    onNavigateToCategory: (String) -> Unit = {},
-    onNavigateToInstalledComponents: () -> Unit = {}
+    onNavigateToInstalledComponents: () -> Unit = {},
+    onNavigateToUiStyles: () -> Unit = {},
+    onNavigateToMonetSettings: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val themeStates by viewModel.themeStates.collectAsStateWithLifecycle()
-    
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
-    
-    Scaffold { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            if (isSearchActive) {
-                SearchScreen(
-                    viewModel = viewModel,
-                    searchQuery = searchQuery,
-                    onSearchChange = { 
-                        searchQuery = it
-                        viewModel.searchThemes(it)
-                    },
-                    onBack = { 
-                        isSearchActive = false
-                        searchQuery = ""
-                        viewModel.searchThemes("")
-                    },
-                    themes = viewModel.getFilteredThemes(),
-                    themeStates = themeStates,
-                    onThemeClick = onThemeClick
-                )
-            } else {
-                BrowseScreen(
-                    uiState = uiState,
-                    themeStates = themeStates,
-                    onSearchClick = { isSearchActive = true },
-                    onRefresh = { viewModel.loadThemes(forceRefresh = true) },
-                    onThemeClick = onThemeClick,
-                    onNavigateToCategory = onNavigateToCategory,
+    val browseRows by viewModel.mainStoreBrowseCategoryRows.collectAsStateWithLifecycle()
+    val firstSectionMatch = remember(uiState.searchQuery) {
+        firstSectionSearchMatch(uiState.searchQuery)
+    }
 
-                    onNavigateToInstalledComponents = onNavigateToInstalledComponents
-                )
+    var showResetDialog by remember { mutableStateOf(false) }
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            text = {
+                Text(stringResource(R.string.theme_store_reset_message))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetDialog = false
+                        viewModel.resetAllStylesToDefaults()
+                    }
+                ) {
+                    Text(stringResource(R.string.theme_store_reset_yes))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text(stringResource(R.string.theme_store_reset_cancel))
+                }
+            }
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.alpha_visuals_title), fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = onNavigateToInstalledComponents) {
+                        Icon(Icons.Default.Info, contentDescription = stringResource(R.string.installed_components))
+                    }
+                    IconButton(onClick = { showResetDialog = true }) {
+                        Icon(
+                            Icons.Outlined.RestartAlt,
+                            contentDescription = stringResource(R.string.theme_store_reset)
+                        )
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        when {
+            uiState.isLoading -> LoadingState(modifier = Modifier.padding(paddingValues))
+            uiState.error != null -> ErrorState(uiState.error!!, { viewModel.loadThemes(true) }, Modifier.padding(paddingValues))
+            else -> {
+                val scheme = MaterialTheme.colorScheme
+                val mainBackdrop = remember(
+                    scheme.background,
+                    scheme.primaryContainer,
+                    scheme.surface,
+                    scheme.tertiaryContainer,
+                ) {
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            scheme.background,
+                            lerp(scheme.background, scheme.primaryContainer, 0.22f),
+                            lerp(scheme.surface, scheme.tertiaryContainer, 0.12f),
+                        ),
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(mainBackdrop),
+                    )
+                    Column(Modifier.fillMaxSize()) {
+                        TextField(
+                            value = uiState.searchQuery,
+                            onValueChange = { viewModel.searchThemes(it) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                            placeholder = { Text(stringResource(R.string.search_themes)) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(28.dp),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                disabledIndicatorColor = Color.Transparent,
+                            ),
+                        )
+                        Spacer(modifier = Modifier.height(PreviewDimensions.ThemeStoreSearchToFirstRowSpacing))
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentPadding = PaddingValues(
+                                bottom = PreviewDimensions.ThemeStoreSearchToFirstRowSpacing,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(
+                                PreviewDimensions.ThemeStoreSectionSpacing,
+                            ),
+                        ) {
+                            if (firstSectionMatch.hasAnyMatch || uiState.searchQuery.isBlank()) {
+                                item(key = "themes_section") {
+                                    ThemesEntrySection(
+                                        onMonetClick = onNavigateToMonetSettings,
+                                        onUiStylesClick = onNavigateToUiStyles,
+                                    )
+                                }
+                            }
+                            if (browseRows.isEmpty()) {
+                                item(key = "empty_state") {
+                                    EmptyState(
+                                        isSearching = uiState.searchQuery.isNotBlank(),
+                                        firstSectionMatchLabel = firstSectionMatch.label,
+                                        modifier = Modifier
+                                            .fillParentMaxSize()
+                                            .fillMaxWidth(),
+                                    )
+                                }
+                            } else {
+                                items(
+                                    browseRows,
+                                    key = { (category, _) -> category },
+                                    contentType = { "category_row" },
+                                ) { (category, themes) ->
+                                    val themeIdsKey = remember(themes) {
+                                        themes.joinToString(separator = "\u0000") { it.id }
+                                    }
+                                    val anyActiveInSection = remember(themeIdsKey, themeStates) {
+                                        themes.any {
+                                            themeStates[it.id] is ThemeInstallState.Installed
+                                        }
+                                    }
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        Text(
+                                            text = themeSectionTitle(category),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (anyActiveInSection) {
+                                                lerp(scheme.onSurface, scheme.primary, 0.28f)
+                                            } else {
+                                                scheme.onSurface
+                                            },
+                                            modifier = Modifier.padding(
+                                                horizontal = 16.dp,
+                                                vertical = 4.dp,
+                                            ),
+                                        )
+                                        Spacer(
+                                            modifier = Modifier.height(
+                                                PreviewDimensions.ThemeStoreSectionLabelToCardsSpacing,
+                                            ),
+                                        )
+                                        MainStoreThemeStrip(
+                                            themes = themes,
+                                            themeStates = themeStates,
+                                            onThemeClick = onThemeClick,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -127,20 +273,18 @@ fun CategoryThemesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val themeStates by viewModel.themeStates.collectAsStateWithLifecycle()
-    
+
     val category = uiState.categories.find { it.id == categoryId }
     val categoryName = category?.name ?: "Themes"
-    
-    val categoryThemes = if (categoryId == "local") {
-        uiState.themes.filter { it.isLocal }
-    } else {
+
+    val categoryThemes = remember(categoryId, uiState.themes) {
         uiState.themes.filter { it.category == categoryId }
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         text = categoryName,
                         style = MaterialTheme.typography.headlineSmall,
@@ -181,17 +325,17 @@ fun CategoryThemesScreen(
                 }
                 else -> {
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
+                        columns = GridCells.Fixed(1),
                         contentPadding = PaddingValues(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(categoryThemes, key = { it.id }) { theme ->
-                            ThemeCard(
+                            ThemeRow(
                                 theme = theme,
-                                installState = themeStates[theme.id] ?: ThemeInstallState.NotInstalled,
-                                onClick = { onThemeClick(theme) }
+                                isActive = themeStates[theme.id] is ThemeInstallState.Installed,
+                                onClick = { onThemeClick(theme) },
                             )
                         }
                     }
@@ -201,919 +345,486 @@ fun CategoryThemesScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SearchScreen(
-    viewModel: ThemeStoreViewModel,
-    searchQuery: String,
-    onSearchChange: (String) -> Unit,
-    onBack: () -> Unit,
-    themes: List<Theme>,
-    themeStates: Map<String, ThemeInstallState>,
-    onThemeClick: (Theme) -> Unit
-) {
-    val focusRequester = remember { FocusRequester() }
-    
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.back)
-                )
+private fun themeSectionTitle(category: String): String {
+    val c = PreviewDimensions.normalizeStoreCategoryForPreview(category)
+    return when (c) {
+        "ui_style" -> stringResource(R.string.ui_style_preview_section_title)
+        "back_gesture" -> stringResource(R.string.section_back_gesture)
+        "charging_animation" -> stringResource(R.string.section_charging_animation)
+        "battery_style" -> stringResource(R.string.section_battery_style)
+        "navbar" -> stringResource(R.string.section_navbar)
+        "lockscreen_clock_font" -> stringResource(R.string.section_lockscreen_clock_font)
+        "font" -> stringResource(R.string.section_system_font)
+        "wifi_icons" -> stringResource(R.string.section_wifi_icons)
+        "signal_icons" -> stringResource(R.string.section_signal_icons)
+        "icon_packs" -> stringResource(R.string.section_icon_packs)
+        else -> c.replace('_', ' ')
+            .split(' ')
+            .joinToString(" ") { word ->
+                word.replaceFirstChar { it.uppercase() }
             }
-            
-            TextField(
-                value = searchQuery,
-                onValueChange = onSearchChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester),
-                placeholder = { 
-                    Text(
-                        stringResource(R.string.search_themes),
-                        style = MaterialTheme.typography.bodyLarge
-                    ) 
-                },
-                singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant
-                )
-            )
-            
-            if (searchQuery.isNotEmpty()) {
-                IconButton(onClick = { onSearchChange("") }) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.clear)
-                    )
-                }
-            }
-        }
-        
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        
-        if (themes.isEmpty() && searchQuery.isNotEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.no_results_found),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else if (searchQuery.isNotEmpty()) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                items(themes, key = { it.id }) { theme ->
-                    ThemeListItem(
-                        theme = theme,
-                        installState = themeStates[theme.id] ?: ThemeInstallState.NotInstalled,
-                        onClick = { onThemeClick(theme) }
-                    )
-                }
-            }
-        } else {
-            val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
-            
-            if (searchHistory.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                        Text(
-                            text = stringResource(R.string.no_recent_searches),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(vertical = 8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.recent_searches),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium
-                        )
-                        TextButton(onClick = { viewModel.clearSearchHistory() }) {
-                            Text(stringResource(R.string.clear_all))
-                        }
-                    }
-                    
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(searchHistory) { query ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onSearchChange(query) }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.History,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = query,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                IconButton(
-                                    onClick = { viewModel.removeSearchHistoryItem(query) },
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = stringResource(R.string.remove),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BrowseScreen(
-    uiState: ThemeStoreUiState,
+private fun MainStoreThemeStrip(
+    themes: List<Theme>,
     themeStates: Map<String, ThemeInstallState>,
-    onSearchClick: () -> Unit,
-    onRefresh: () -> Unit,
     onThemeClick: (Theme) -> Unit,
-    onNavigateToCategory: (String) -> Unit,
-
-    onNavigateToInstalledComponents: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
+    if (themes.size <= MAIN_STORE_THEME_STRIP_STATIC_ROW_MAX) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(R.string.themes),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            
-            Spacer(modifier = Modifier.weight(1f))
-            
-            IconButton(onClick = onNavigateToInstalledComponents) {
-                Icon(
-                    imageVector = Icons.Default.Layers,
-                    contentDescription = stringResource(R.string.installed_components)
-                )
-            }
-            
-            IconButton(onClick = onSearchClick) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = stringResource(R.string.search)
-                )
-            }
-            
-            IconButton(onClick = onRefresh) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(R.string.refresh)
+            themes.forEach { theme ->
+                ThemeHorizontalCard(
+                    theme = theme,
+                    isActive = themeStates[theme.id] is ThemeInstallState.Installed,
+                    onClick = { onThemeClick(theme) },
                 )
             }
         }
-        
-        when {
-            uiState.isLoading -> {
-                LoadingState()
-            }
-            uiState.error != null -> {
-                ErrorState(
-                    message = uiState.error!!,
-                    onRetry = onRefresh
-                )
-            }
-            else -> {
-                if (uiState.themes.isEmpty()) {
-                    EmptyState(isSearching = false)
-                } else {
-                    val themesByCategory = uiState.themes.groupBy { it.category }
-                    
-                    val installedThemes = uiState.themes.filter { theme ->
-                        val state = themeStates[theme.id]
-                        state is ThemeInstallState.Installed || 
-                        state is ThemeInstallState.InstalledInactive ||
-                        theme.isLocal
-                    }
-                    
-                    val featuredThemes = remember(uiState.themes) { uiState.themes.shuffled().take(3) }
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        if (featuredThemes.isNotEmpty()) {
-                            item {
-                                FeaturedCarousel(
-                                    themes = featuredThemes,
-                                    themeStates = themeStates,
-                                    onThemeClick = onThemeClick
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                            }
-                        }
-                        
-                        if (installedThemes.isNotEmpty()) {
-                            item {
-                                ThemeSection(
-                                    title = stringResource(R.string.installed),
-                                    themes = installedThemes,
-                                    themeStates = themeStates,
-                                    onThemeClick = onThemeClick
-                                )
-                            }
-                        }
-                        
-                        uiState.categories.forEach { category ->
-                            val categoryThemes = themesByCategory[category.id] ?: emptyList()
-                            if (categoryThemes.isNotEmpty()) {
-                                item {
-                                    ThemeSection(
-                                        title = category.name,
-                                        themes = categoryThemes,
-                                        themeStates = themeStates,
-                                        onThemeClick = onThemeClick
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ThemeSection(
-    title: String,
-    themes: List<Theme>,
-    themeStates: Map<String, ThemeInstallState>,
-    onThemeClick: (Theme) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        
-        val chunkedThemes = themes.chunked(3)
-        
+    } else {
         LazyRow(
+            modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(chunkedThemes.size) { chunkIndex ->
-                val chunk = chunkedThemes[chunkIndex]
-                Column(
-                    modifier = Modifier.width(280.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    chunk.forEach { theme ->
-                        ThemeListItem(
-                            theme = theme,
-                            installState = themeStates[theme.id] ?: ThemeInstallState.NotInstalled,
-                            onClick = { onThemeClick(theme) }
-                        )
-                    }
-                }
+            items(
+                themes,
+                key = { it.id },
+                contentType = { "theme_horizontal_card" },
+            ) { theme ->
+                ThemeHorizontalCard(
+                    theme = theme,
+                    isActive = themeStates[theme.id] is ThemeInstallState.Installed,
+                    onClick = { onThemeClick(theme) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ThemeListItem(
+private fun ThemeHorizontalCard(
     theme: Theme,
-    installState: ThemeInstallState,
-    onClick: () -> Unit
+    isActive: Boolean,
+    onClick: () -> Unit,
 ) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.medium
+    val outerCardColor = scheme.surfaceContainerLow
+    val inactiveInnerPreviewColor =
+        lerp(scheme.surfaceContainerLow, scheme.surfaceContainerHighest, 0.45f)
+    val activeInnerPreviewGradient = remember(
+        scheme.primaryContainer,
+        scheme.surfaceContainerHigh,
+        scheme.tertiaryContainer,
+        scheme.primary,
+        scheme.secondaryContainer,
+        scheme.tertiary,
+    ) {
+        Brush.linearGradient(
+            colors = listOf(
+                lerp(scheme.primaryContainer, scheme.surfaceContainerHigh, 0.15f),
+                lerp(scheme.tertiaryContainer, scheme.primary.copy(alpha = 0.35f), 0.5f),
+                lerp(scheme.secondaryContainer, scheme.tertiary.copy(alpha = 0.28f), 0.35f),
+            ),
+            start = Offset(0f, 0f),
+            end = Offset(200f, 180f),
+        )
+    }
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .widthIn(min = 132.dp, max = 168.dp)
+            .then(
+                if (isActive) {
+                    Modifier.border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                scheme.primary.copy(alpha = 0.55f),
+                                scheme.tertiary.copy(alpha = 0.45f),
+                            ),
+                        ),
+                        shape = shape,
+                    )
+                } else {
+                    Modifier
+                },
+            ),
+        color = Color.Transparent,
+        shape = shape,
+        shadowElevation = if (isActive) 3.dp else 0.dp,
+        tonalElevation = if (isActive) 2.dp else 0.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .background(outerCardColor, shape)
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.small)
+                    .then(
+                        if (isActive) {
+                            Modifier.background(activeInnerPreviewGradient)
+                        } else {
+                            Modifier.background(inactiveInnerPreviewColor)
+                        },
+                    )
+                    .padding(vertical = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                ThemeStoreItemPreview(
+                    theme = theme,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(PreviewDimensions.MainListHorizontalPreviewHeight),
+                    compact = true,
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = mainListDisplayName(theme),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+                color = scheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeRow(
+    theme: Theme,
+    isActive: Boolean,
+    onClick: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.medium
+    val outerRowColor = scheme.surfaceContainerLow
+    val inactiveInnerPreviewColor =
+        lerp(scheme.surfaceContainerLow, scheme.surfaceContainerHighest, 0.4f)
+    val activeInnerPreviewGradient = remember(
+        scheme.primaryContainer,
+        scheme.surfaceContainerHigh,
+        scheme.tertiaryContainer,
+        scheme.primary,
+    ) {
+        Brush.linearGradient(
+            colors = listOf(
+                lerp(scheme.primaryContainer, scheme.surfaceContainerHigh, 0.12f),
+                lerp(scheme.tertiaryContainer, scheme.primary.copy(alpha = 0.3f), 0.45f),
+            ),
+            start = Offset(0f, 40f),
+            end = Offset(380f, 40f),
+        )
+    }
+    val chevronColor =
+        if (isActive) lerp(scheme.primary, scheme.tertiary, 0.25f) else scheme.onSurfaceVariant
+
     Surface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        color = Color.Transparent
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .then(
+                if (isActive) {
+                    Modifier.border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                scheme.primary.copy(alpha = 0.5f),
+                                scheme.tertiary.copy(alpha = 0.4f),
+                            ),
+                        ),
+                        shape = shape,
+                    )
+                } else {
+                    Modifier
+                },
+            ),
+        color = Color.Transparent,
+        shape = shape,
+        shadowElevation = if (isActive) 2.dp else 0.dp,
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .background(outerRowColor, shape)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(PreviewDimensions.MainListCategoryPreviewSize)
                     .clip(MaterialTheme.shapes.small)
+                    .then(
+                        if (isActive) {
+                            Modifier.background(activeInnerPreviewGradient)
+                        } else {
+                            Modifier.background(inactiveInnerPreviewColor)
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
             ) {
-                val isInstalled = installState is ThemeInstallState.Installed ||
-                                  installState is ThemeInstallState.InstalledInactive
-                val packageName = theme.overlays.firstOrNull()?.packageName ?: ""
-                val category = theme.category.ifEmpty { theme.overlays.firstOrNull()?.componentId ?: "" }
-                val isBattery = packageName.contains("battery") || category.contains("battery")
-                val isBackGesture = packageName.contains("back_gesture") || category.contains("back_gesture")
-                val isChargingAnim = packageName.contains("charging_animation") || category.contains("charging_animation")
-
-                run {
-                    val previewResIds = getLocalPreviewResIds(LocalContext.current, packageName)
-                    if (previewResIds.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painter = painterResource(previewResIds.first()),
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp),
-                                colorFilter = ColorFilter.tint(
-                                    MaterialTheme.colorScheme.onSurface)
-                            )
-                        }
-                    } else if (isBattery) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            MaterialTheme.colorScheme.surfaceContainer
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            BatteryStylePreview(
-                                packageName = packageName,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    } else if (isBackGesture) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            MaterialTheme.colorScheme.surfaceContainer
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            BackGesturePreview(modifier = Modifier.fillMaxSize())
-                        }
-                    } else if (isChargingAnim) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            MaterialTheme.colorScheme.surfaceContainer
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.BatteryChargingFull,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else if (isInstalled && packageName.isNotEmpty()) {
-                        ThemePackagePreview(
-                            packageName = packageName,
-                            modifier = Modifier.fillMaxSize(),
-                            showSingleIcon = true
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            MaterialTheme.colorScheme.surfaceContainer
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Palette,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+                ThemeStoreItemPreview(
+                    theme = theme,
+                    modifier = Modifier.fillMaxSize(),
+                    compact = true,
+                )
             }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = theme.name,
-                    style = MaterialTheme.typography.bodyLarge,
+                    mainListDisplayName(theme),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = scheme.onSurface,
                 )
-                Text(
-                    text = theme.description.ifEmpty { theme.category },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
-                val stateText = when (installState) {
-                    is ThemeInstallState.Installed -> "Active"
-                    is ThemeInstallState.InstalledInactive -> "Installed"
-                    else -> null
-                }
-                stateText?.let {
-                    Text(
-                        text = "✓ $it",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
             }
-            
-            if (theme.previewImages.size > 1) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 48.dp, height = 80.dp)
-                        .clip(MaterialTheme.shapes.extraSmall)
-                ) {
-                    AsyncNetworkImage(
-                        url = theme.previewImages[1],
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            }
+            Icon(
+                Icons.Default.ArrowForward,
+                contentDescription = null,
+                tint = chevronColor,
+            )
+        }
+    }
+}
+
+private fun mainListDisplayName(theme: Theme): String {
+    if (theme.category == "back_gesture" && theme.name.contains("Dot trail", ignoreCase = true)) {
+        return "Dot trail"
+    }
+    if (theme.category == "charging_animation") {
+        val pkg = theme.overlays.firstOrNull()?.packageName.orEmpty()
+        val style = pkg.substringAfterLast('.')
+        if (style == "moto") return "Moto"
+        if (style == "nothing") return "Nothing"
+    }
+    return theme.name
+}
+
+@Composable
+private fun LoadingState(modifier: Modifier = Modifier) {
+    Box(modifier = Modifier.fillMaxSize().then(modifier), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun ErrorState(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Box(modifier = Modifier.fillMaxSize().then(modifier), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Default.ErrorOutline, contentDescription = null)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = message, textAlign = TextAlign.Center)
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = onRetry) { Text(stringResource(R.string.retry)) }
         }
     }
 }
 
 @Composable
-private fun CompactThemeCard(
-    theme: Theme,
-    installState: ThemeInstallState,
-    onClick: () -> Unit
+private fun EmptyState(
+    isSearching: Boolean,
+    firstSectionMatchLabel: String? = null,
+    modifier: Modifier = Modifier.fillMaxSize(),
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier
-            .width(140.dp),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Text(
+            text = when {
+                !isSearching -> stringResource(R.string.no_themes_available)
+                firstSectionMatchLabel != null -> firstSectionMatchLabel
+                else -> stringResource(R.string.no_results_found)
+            },
+            style = MaterialTheme.typography.bodyLarge
         )
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp)
-                    .clip(MaterialTheme.shapes.medium)
+    }
+}
+
+private val MONET_SEARCH_TOKENS = listOf(
+    "monet", "material you", "dynamic color", "theme style", "color source",
+    "accent", "chroma", "luminance", "fidelity", "wallpaper color", "tonal",
+    "vibrant", "expressive", "spritz", "rainbow", "fruit salad", "monochromatic",
+)
+
+private val UI_STYLE_SEARCH_TOKENS = listOf(
+    "ui style", "ui styles", "uistyle", "uistyles",
+    "outline", "neon", "bevel", "gradient", "reflective", "slash", "aerogel", "metallic", "style",
+)
+
+private data class FirstSectionSearchMatch(
+    val monetToken: String? = null,
+    val uiStyleToken: String? = null,
+) {
+    val hasAnyMatch: Boolean
+        get() = monetToken != null || uiStyleToken != null
+
+    val label: String?
+        get() = when {
+            monetToken != null -> "Monet - $monetToken"
+            uiStyleToken != null -> "UI Styles - $uiStyleToken"
+            else -> null
+        }
+}
+
+private fun firstSectionSearchMatch(query: String): FirstSectionSearchMatch {
+    if (query.isBlank()) return FirstSectionSearchMatch()
+    val q = query.lowercase()
+    val monet = MONET_SEARCH_TOKENS.firstOrNull { token -> token.contains(q) || q.contains(token) }
+    val uiStyles =
+        UI_STYLE_SEARCH_TOKENS.firstOrNull { token -> token.contains(q) || q.contains(token) }
+    return FirstSectionSearchMatch(monetToken = monet, uiStyleToken = uiStyles)
+}
+
+@Composable
+private fun ThemesEntrySection(
+    onMonetClick: () -> Unit,
+    onUiStylesClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val cardShape = MaterialTheme.shapes.medium
+    val previewShape = MaterialTheme.shapes.small
+    val previewBg = lerp(scheme.surfaceContainerLow, scheme.surfaceContainerHighest, 0.45f)
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.section_themes),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = scheme.onSurface,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+
+        Spacer(modifier = Modifier.height(PreviewDimensions.ThemeStoreSectionLabelToCardsSpacing))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Surface(
+                onClick = onMonetClick,
+                modifier = Modifier.weight(1f),
+                color = Color.Transparent,
+                shape = cardShape,
             ) {
-                val isInstalled = installState is ThemeInstallState.Installed || 
-                                  installState is ThemeInstallState.InstalledInactive
-                val packageName = theme.overlays.firstOrNull()?.packageName
-                
-                when {
-                    theme.previewImages.isNotEmpty() -> {
-                        AsyncNetworkImage(
-                            url = theme.previewImages.first(),
-                            contentDescription = theme.name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                            errorContent = {
-                                if (isInstalled && packageName != null) {
-                                    ThemePackagePreview(
-                                        packageName = packageName,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    ImagePlaceholder(modifier = Modifier.fillMaxSize())
-                                }
-                            }
-                        )
-                    }
-                    isInstalled && packageName != null -> {
-                        ThemePackagePreview(
-                            packageName = packageName,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    else -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            MaterialTheme.colorScheme.surfaceContainer
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Palette,
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-                
-                val stateColor = when (installState) {
-                    is ThemeInstallState.Installed -> MaterialTheme.colorScheme.primary
-                    is ThemeInstallState.InstalledInactive -> MaterialTheme.colorScheme.secondary
-                    else -> null
-                }
-                stateColor?.let { color ->
+                Column(
+                    modifier = Modifier
+                        .background(scheme.surfaceContainerLow, cardShape)
+                        .padding(horizontal = 10.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(color)
+                            .fillMaxWidth()
+                            .height(PreviewDimensions.MainListHorizontalPreviewHeight)
+                            .clip(previewShape)
+                            .background(previewBg)
+                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        MonetSwatchCompact()
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.monet_card_label),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = scheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }
-            
-            Column(
-                modifier = Modifier.padding(12.dp)
+
+            Surface(
+                onClick = onUiStylesClick,
+                modifier = Modifier.weight(1f),
+                color = Color.Transparent,
+                shape = cardShape,
             ) {
-                Text(
-                    text = theme.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = theme.author,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
+                Column(
+                    modifier = Modifier
+                        .background(scheme.surfaceContainerLow, cardShape)
+                        .padding(horizontal = 10.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(PreviewDimensions.MainListHorizontalPreviewHeight)
+                            .clip(previewShape)
+                            .background(previewBg)
+                            .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        UiStyleCardPreview()
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.ui_styles_card_label),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = scheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun FeaturedCarousel(
-    themes: List<Theme>,
-    themeStates: Map<String, ThemeInstallState>,
-    onThemeClick: (Theme) -> Unit
-) {
-    val pagerState = rememberPagerState(pageCount = { themes.size })
-    
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.featured),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp)
-        )
-        
-        HorizontalPager(
-            state = pagerState,
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            pageSpacing = 16.dp,
-            modifier = Modifier.height(200.dp)
-        ) { page ->
-            val theme = themes[page]
-            FeaturedThemeCard(
-                theme = theme, 
-                installState = themeStates[theme.id] ?: ThemeInstallState.NotInstalled,
-                onClick = { onThemeClick(theme) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun FeaturedThemeCard(
-    theme: Theme,
-    installState: ThemeInstallState,
-    onClick: () -> Unit
-) {
-    val containerColor = MaterialTheme.colorScheme.primaryContainer
-    val scrimmedBg = lerp(containerColor, Color.Black, 0.6f)
-    val textColor = if (scrimmedBg.luminance() < 0.4f) Color.White else Color.Black
-
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxSize(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor
-        )
+private fun UiStyleCardPreview(modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            FeaturedPreviewContent(theme = theme, iconTint = textColor)
-
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.6f)
-                            ),
-                            startY = 100f
-                        )
-                    )
+                    .size(22.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(scheme.primary),
             )
-
-            Column(
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = theme.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor
-                )
-                Text(
-                    text = theme.author,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = textColor.copy(alpha = 0.8f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FeaturedPreviewContent(theme: Theme, iconTint: Color) {
-    val context = LocalContext.current
-    val previewMap = remember {
-        val map = mutableMapOf<String, String>()
-        try {
-            val entries = context.resources.getStringArray(R.array.overlay_preview_map)
-            for (entry in entries) {
-                val parts = entry.split("|", limit = 2)
-                if (parts.size == 2) map[parts[0]] = parts[1]
-            }
-        } catch (_: Exception) {}
-        map
-    }
-
-    val packageName = theme.overlays.firstOrNull()?.packageName ?: ""
-    val prefix = previewMap[packageName] ?: ""
-    val resIds = if (prefix.isNotEmpty()) {
-        (1..4).mapNotNull { i ->
-            val id = context.resources.getIdentifier("${prefix}_$i", "drawable", context.packageName)
-            if (id != 0) id else null
-        }
-    } else emptyList()
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primaryContainer,
-                        MaterialTheme.colorScheme.tertiaryContainer
-                    )
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (resIds.isNotEmpty()) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                for (resId in resIds) {
-                    Image(
-                        painter = painterResource(resId),
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp),
-                        colorFilter = ColorFilter.tint(iconTint)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LoadingState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            LoadingIndicator()
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = stringResource(R.string.loading_themes),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                    .size(18.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(scheme.tertiary),
             )
         }
-    }
-}
-
-@Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.ErrorOutline,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = stringResource(R.string.failed_to_load_themes),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onRetry) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.retry))
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyState(isSearching: Boolean) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = if (isSearching) Icons.Default.SearchOff else Icons.Default.Inbox,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = stringResource(if (isSearching) R.string.no_themes_found else R.string.no_themes_available),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(
-                    if (isSearching) R.string.try_different_search
-                    else R.string.check_back_later
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-private val sPreviewMapCache = mutableMapOf<String, String>()
-
-@Composable
-private fun getLocalPreviewResIds(context: android.content.Context, packageName: String): List<Int> {
-    if (sPreviewMapCache.isEmpty()) {
-        try {
-            val entries = context.resources.getStringArray(R.array.overlay_preview_map)
-            for (entry in entries) {
-                val parts = entry.split("|", limit = 2)
-                if (parts.size == 2) sPreviewMapCache[parts[0]] = parts[1]
-            }
-        } catch (_: Exception) {}
-    }
-    val prefix = sPreviewMapCache[packageName] ?: return emptyList()
-    return (1..4).mapNotNull { i ->
-        val id = context.resources.getIdentifier("${prefix}_$i", "drawable", context.packageName)
-        if (id != 0) id else null
+        Box(
+            modifier = Modifier
+                .width(52.dp)
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(scheme.outlineVariant),
+        )
     }
 }
