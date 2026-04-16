@@ -62,6 +62,7 @@ class ThemeEngineProxy(private val context: Context) {
         private const val OVERLAY_CATEGORY_WIFI = "android.theme.customization.wifi_icon"
         private const val OVERLAY_CATEGORY_SIGNAL = "android.theme.customization.signal_icon"
         private const val OVERLAY_CATEGORY_BATTERY = "android.theme.customization.battery_style"
+        private const val OVERLAY_CATEGORY_CHARGING = "android.theme.customization.charging_animation"
 
         object Category {
             const val STATUSBAR_WIFI = "statusbar_wifi"
@@ -407,6 +408,11 @@ class ThemeEngineProxy(private val context: Context) {
                 themes = themes,
                 categoryObj = categoryObj
             )
+            syncChargingAnimationCategory(
+                categoryThemes = categoryThemes,
+                themes = themes,
+                categoryObj = categoryObj
+            )
 
             root.put("themes", themes)
             root.put("categoryThemes", categoryObj)
@@ -439,6 +445,29 @@ class ThemeEngineProxy(private val context: Context) {
         themes.put(engineKey, entry)
         categoryObj.put(engineKey, pkg)
         categoryObj.put("statusbar_$engineKey", pkg)
+    }
+
+    /**
+     * Charging animation uses [ThemeEngine.CATEGORY_CHARGING_ANIMATION] only (no `statusbar_` alias).
+     */
+    private fun syncChargingAnimationCategory(
+        categoryThemes: Map<String, String>,
+        themes: JSONObject,
+        categoryObj: JSONObject
+    ) {
+        val engineKey = ThemeEngine.CATEGORY_CHARGING_ANIMATION
+        val pkg = categoryThemes[OVERLAY_CATEGORY_CHARGING]
+        if (pkg.isNullOrBlank()) {
+            themes.remove(engineKey)
+            categoryObj.remove(engineKey)
+            return
+        }
+        val entry = JSONObject().apply {
+            put("enabled", true)
+            put("packageName", pkg)
+        }
+        themes.put(engineKey, entry)
+        categoryObj.put(engineKey, pkg)
     }
 
     fun setThemedIconStyle(style: String) {
