@@ -180,4 +180,10 @@
     <string name="monet_engine_color_source_preset">Preset</string>
     <string name="monet_engine_fidelity_title">Color fidelity</string>
     <string name="monet_engine_fidelity_summary">Use the seed color\'s exact chroma on the primary palette instead of the scheme\'s default chroma adjustment. Produces more vivid, true-to-source colors. Only affects the primary palette.</string>
+    <string name="monet_engine_style_disabled_fidelity">Disabled by Color fidelity</string>
+    <string name="monet_engine_contrast_level_title">Contrast level</string>
+    <string name="monet_engine_contrast_level_summary">Adjusts contrast between foreground and background elements</string>
+    <string name="monet_engine_contrast_low">Low</string>
+    <string name="monet_engine_contrast_normal">Normal</string>
+    <string name="monet_engine_contrast_high">High</string>
 </resources>

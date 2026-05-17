@@ -70,6 +70,7 @@ import com.alpha.settings.ui.R
 import com.alpha.settings.ui.monet.utils.ColorPickerDialog
 import com.alpha.settings.ui.monet.utils.WallpaperColorPickerDialog
 import org.json.JSONObject
+import com.android.axion.compose.preferences.CustomSeekBar
 import kotlin.math.roundToInt
 
 private const val TAG = "MonetSettingsScreen"
@@ -174,6 +175,7 @@ fun MonetSettingsScreen(
     var bgColor by remember { mutableIntStateOf(DEFAULT_COLOR) }
     var luminance by remember { mutableIntStateOf(0) }
     var chroma by remember { mutableIntStateOf(0) }
+    var contrastLevel by remember { mutableStateOf(0f) }
     var tintBackground by remember { mutableStateOf(false) }
     var fidelity by remember { mutableStateOf(false) }
     var berryBlackActive by remember { mutableStateOf(false) }
@@ -203,8 +205,13 @@ fun MonetSettingsScreen(
 
             luminance = toSlider(obj.optDouble(OVERLAY_LUMINANCE_FACTOR, 1.0))
             chroma = toSlider(obj.optDouble(OVERLAY_CHROMA_FACTOR, 1.0))
+            contrastLevel = obj.optDouble("_contrast_level", 0.0).toFloat()
             tintBackground = obj.optInt(OVERLAY_TINT_BACKGROUND, 0) == 1
-            fidelity = obj.optInt(OVERLAY_FIDELITY, 0) == 1
+            fidelity = if (obj.has(OVERLAY_FIDELITY)) {
+                obj.optInt(OVERLAY_FIDELITY, 0) == 1
+            } else {
+                obj.optBoolean("_fidelity_enabled", false)
+            }
             berryBlackActive = isBerryBlackActive(context)
         } catch (e: Exception) {
             Log.w(TAG, "Could not read theme overlay settings", e)
@@ -284,12 +291,14 @@ fun MonetSettingsScreen(
         )
     }
 
-    val isMono = themeStyle == STYLE_MONOCHROMATIC
-    val bgTintDisallowed = isBackgroundTintDisallowed(themeStyle) || berryBlackActive
-    val chromaEnabled = !isMono
-    val fidelityEnabled = !isMono
-    val colorSourceEnabled = !isMono
-    val accentEnabled = !isMono && colorSource == COLOR_SOURCE_PRESET
+    val effectivelyMono = !fidelity && themeStyle == STYLE_MONOCHROMATIC
+    val styleEnabled = !fidelity
+    val effectiveStyle = if (fidelity) "CONTENT" else themeStyle
+    val bgTintDisallowed = isBackgroundTintDisallowed(effectiveStyle) || berryBlackActive
+    val chromaEnabled = !effectivelyMono
+    val fidelityEnabled = !effectivelyMono
+    val colorSourceEnabled = !effectivelyMono
+    val accentEnabled = !effectivelyMono && colorSource == COLOR_SOURCE_PRESET
     val tintBgEnabled = !bgTintDisallowed
     val bgColorEnabled = tintBgEnabled && tintBackground
 
@@ -342,9 +351,10 @@ fun MonetSettingsScreen(
                     label = stringResource(R.string.monet_engine_style_title),
                     value = styleDisplayName(themeStyle),
                     expanded = showStyleDropdown,
-                    onToggle = { showStyleDropdown = !showStyleDropdown },
+                    onToggle = { if (styleEnabled) showStyleDropdown = !showStyleDropdown },
                     onDismiss = { showStyleDropdown = false },
-                    enabled = true,
+                    enabled = styleEnabled,
+                    disabledReason = if (!styleEnabled) stringResource(R.string.monet_engine_style_disabled_fidelity) else null,
                 ) {
                     STYLE_ENTRIES.forEach { (value, labelRes) ->
                         DropdownMenuItem(
@@ -359,7 +369,10 @@ fun MonetSettingsScreen(
                                     obj.put(OVERLAY_CATEGORY_THEME_STYLE, value)
                                     if (value == STYLE_MONOCHROMATIC) {
                                         obj.remove(OVERLAY_CHROMA_FACTOR)
-                                        obj.remove(OVERLAY_FIDELITY)
+                                        obj.remove("_chroma_boost")
+                                        obj.put(OVERLAY_FIDELITY, 0)
+                                        obj.put("_fidelity_enabled", false)
+                                        fidelity = false
                                     }
                                     if (isBackgroundTintDisallowed(value)) {
                                         obj.remove(OVERLAY_TINT_BACKGROUND)
@@ -382,7 +395,7 @@ fun MonetSettingsScreen(
                     },
                     onDismiss = { showSourceDropdown = false },
                     enabled = colorSourceEnabled,
-                    disabledReason = if (isMono) stringResource(R.string.monet_engine_controls_disabled_monochrome) else null,
+                    disabledReason = if (effectivelyMono) stringResource(R.string.monet_engine_controls_disabled_monochrome) else null,
                 ) {
                     SOURCE_ENTRIES.forEach { (value, labelRes) ->
                         DropdownMenuItem(
@@ -426,7 +439,7 @@ fun MonetSettingsScreen(
                     summary = stringResource(R.string.monet_engine_custom_color_summary),
                     color = Color(accentColor),
                     enabled = accentEnabled,
-                    disabledReason = if (isMono) stringResource(R.string.monet_engine_controls_disabled_monochrome) else null,
+                    disabledReason = if (effectivelyMono) stringResource(R.string.monet_engine_controls_disabled_monochrome) else null,
                     onClick = { showAccentPicker = true },
                     onWallpaperPick = { showWallpaperPicker = true },
                 )
@@ -435,50 +448,73 @@ fun MonetSettingsScreen(
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // -- Chroma --
-                MonetSliderRow(
-                    label = stringResource(R.string.monet_engine_chroma_factor_title),
-                    summary = if (chromaEnabled) {
-                        stringResource(R.string.monet_engine_chroma_factor_summary)
-                    } else {
-                        stringResource(R.string.monet_engine_controls_disabled_monochrome)
-                    },
+                CustomSeekBar(
+                    title = stringResource(R.string.monet_engine_chroma_factor_title),
                     value = chroma,
-                    range = -80..100,
-                    step = 5,
-                    enabled = chromaEnabled,
-                    onReset = {
-                        chroma = 0
-                        putField { obj -> obj.remove(OVERLAY_CHROMA_FACTOR) }
-                    },
                     onValueChange = { v ->
                         chroma = v
                         putField { obj ->
                             if (v == 0) obj.remove(OVERLAY_CHROMA_FACTOR)
                             else obj.put(OVERLAY_CHROMA_FACTOR, 1.0 + v / 100.0)
+                            obj.remove("_chroma_boost")
                         }
                     },
+                    min = -80,
+                    max = 100,
+                    interval = 5,
+                    defaultValue = 0,
+                    enabled = chromaEnabled,
+                    formatValue = { v -> "${if (v > 0) "+" else ""}$v%" },
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // -- Luminance --
-                MonetSliderRow(
-                    label = stringResource(R.string.monet_engine_luminance_factor_title),
-                    summary = stringResource(R.string.monet_engine_luminance_factor_summary),
+                CustomSeekBar(
+                    title = stringResource(R.string.monet_engine_luminance_factor_title),
                     value = luminance,
-                    range = -60..60,
-                    step = 5,
-                    enabled = true,
-                    onReset = {
-                        luminance = 0
-                        putField { obj -> obj.remove(OVERLAY_LUMINANCE_FACTOR) }
-                    },
                     onValueChange = { v ->
                         luminance = v
                         putField { obj ->
                             if (v == 0) obj.remove(OVERLAY_LUMINANCE_FACTOR)
                             else obj.put(OVERLAY_LUMINANCE_FACTOR, 1.0 + v / 100.0)
+                        }
+                    },
+                    min = -60,
+                    max = 60,
+                    interval = 5,
+                    defaultValue = 0,
+                    enabled = true,
+                    formatValue = { v -> "${if (v > 0) "+" else ""}$v%" },
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val contrastLow = stringResource(R.string.monet_engine_contrast_low)
+                val contrastHigh = stringResource(R.string.monet_engine_contrast_high)
+                val contrastNormal = stringResource(R.string.monet_engine_contrast_normal)
+
+                CustomSeekBar(
+                    title = stringResource(R.string.monet_engine_contrast_level_title),
+                    value = (contrastLevel * 100).roundToInt(),
+                    onValueChange = { v ->
+                        val contrastFloat = v / 100f
+                        contrastLevel = contrastFloat
+                        putField { obj ->
+                            if (contrastFloat == 0f) obj.remove("_contrast_level")
+                            else obj.put("_contrast_level", contrastFloat.toDouble())
+                        }
+                    },
+                    min = -100,
+                    max = 100,
+                    interval = 5,
+                    defaultValue = 0,
+                    enabled = true,
+                    formatValue = { v ->
+                        val contrastFloat = v / 100f
+                        when {
+                            contrastFloat < -0.3f -> contrastLow
+                            contrastFloat > 0.3f -> contrastHigh
+                            else -> contrastNormal
                         }
                     },
                 )
@@ -500,8 +536,8 @@ fun MonetSettingsScreen(
                     onCheckedChange = { on ->
                         fidelity = on
                         putField { obj ->
-                            if (on) obj.put(OVERLAY_FIDELITY, 1)
-                            else obj.remove(OVERLAY_FIDELITY)
+                            obj.put(OVERLAY_FIDELITY, if (on) 1 else 0)
+                            obj.put("_fidelity_enabled", on)
                         }
                     },
                 )
@@ -514,9 +550,9 @@ fun MonetSettingsScreen(
                     summary = when {
                         berryBlackActive ->
                             stringResource(R.string.monet_engine_tint_disabled_berry_black)
-                        isBackgroundTintDisallowed(themeStyle) && themeStyle == STYLE_MONOCHROMATIC ->
+                        isBackgroundTintDisallowed(effectiveStyle) && effectiveStyle == STYLE_MONOCHROMATIC ->
                             stringResource(R.string.monet_engine_tint_disabled_monochrome)
-                        isBackgroundTintDisallowed(themeStyle) ->
+                        isBackgroundTintDisallowed(effectiveStyle) ->
                             stringResource(R.string.monet_engine_tint_disabled_rainbow)
                         else ->
                             stringResource(R.string.monet_engine_tint_background_summary)
@@ -540,7 +576,7 @@ fun MonetSettingsScreen(
                     summary = when {
                         berryBlackActive ->
                             stringResource(R.string.monet_engine_bg_color_disabled_berry_black)
-                        isBackgroundTintDisallowed(themeStyle) ->
+                        isBackgroundTintDisallowed(effectiveStyle) ->
                             stringResource(R.string.monet_engine_bg_color_disabled_style)
                         else -> null
                     },
@@ -801,73 +837,6 @@ private fun MonetColorRow(
     }
 }
 
-@Composable
-private fun MonetSliderRow(
-    label: String,
-    summary: String,
-    value: Int,
-    range: IntRange,
-    step: Int,
-    enabled: Boolean,
-    onReset: () -> Unit,
-    onValueChange: (Int) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f),
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                IconButton(
-                    onClick = onReset,
-                    enabled = enabled,
-                    modifier = Modifier.size(20.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.RestartAlt,
-                        contentDescription = "Reset",
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.38f),
-                    )
-                }
-                Text(
-                    text = "${if (value > 0) "+" else ""}$value%",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(56.dp),
-                )
-            }
-        }
-        Text(
-            text = summary,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.6f),
-        )
-        Slider(
-            value = value.toFloat(),
-            onValueChange = { raw ->
-                val stepped = (raw / step).roundToInt() * step
-                val v = stepped.coerceIn(range.first, range.last)
-                onValueChange(v)
-            },
-            valueRange = range.first.toFloat()..range.last.toFloat(),
-            enabled = enabled,
-        )
-    }
-}
 
 @Composable
 private fun MonetSwitchRow(
