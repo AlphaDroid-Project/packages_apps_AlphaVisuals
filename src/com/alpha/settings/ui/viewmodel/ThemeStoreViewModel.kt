@@ -404,9 +404,9 @@ class ThemeStoreViewModel(application: Application) : AndroidViewModel(applicati
                 themeEngineProxy.applyThemeComponents(overlay.packageName, targetsToApply.toList())
             }
         } else {
-            for (overlay in theme.overlays) {
-                themeEngineProxy.setCategoryTheme(overlay.componentId, overlay.packageName)
-            }
+            val categoryToPackage =
+                theme.overlays.associate { it.componentId to it.packageName }
+            themeEngineProxy.setCategoryThemes(categoryToPackage)
         }
         themeEngineProxy.notifyThemeChanged()
         _pendingComponentChanges.update { it - theme.id }

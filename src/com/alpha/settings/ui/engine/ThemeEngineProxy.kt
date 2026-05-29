@@ -242,6 +242,30 @@ class ThemeEngineProxy(private val context: Context) {
         return saved
     }
 
+    /**
+     * Apply several overlay categories at once (e.g. icon pack android + systemui).
+     * Unlike repeated [setCategoryTheme] calls, this enables every category in one pass instead of
+     * cancelling prior delayed [applyOverlays] work (only the last overlay was being enabled).
+     */
+    fun setCategoryThemes(categoryToPackage: Map<String, String>): Boolean {
+        if (categoryToPackage.isEmpty()) return true
+        val config = getThemeConfig()
+        val merged = config.categoryThemes.toMutableMap().apply { putAll(categoryToPackage) }
+        val disablePackages = categoryToPackage.keys
+            .mapNotNull { key -> config.categoryThemes[key]?.takeIf { it != categoryToPackage[key] } }
+            .toSet()
+        val updated = buildUpdatedCategoryConfig(config, merged)
+        val saved = saveThemeConfig(updated)
+        if (saved) {
+            workerHandler.post {
+                applyAllSyncedOverlays(updated.categoryThemes, disablePackages)
+                syncOverlayPackagesSettings(updated.categoryThemes)
+                syncThemeEngineStatusCategories(updated.categoryThemes)
+            }
+        }
+        return saved
+    }
+
     fun clearCategoryTheme(category: String): Boolean {
         val config = getThemeConfig()
         val oldPackage = config.categoryThemes[category]
@@ -307,12 +331,45 @@ class ThemeEngineProxy(private val context: Context) {
     }
 
     private fun applyOverlays(packageName: String?, oldPackages: Set<String>) {
+        val config = getThemeConfig()
+        val enableMap =
+            if (packageName != null) {
+                val category = packageNameToSyncedCategory(packageName)
+                if (category != null) {
+                    config.categoryThemes + (category to packageName)
+                } else {
+                    config.categoryThemes
+                }
+            } else {
+                config.categoryThemes
+            }
+        applyAllSyncedOverlays(
+            enableMap.filterKeys { it in SYNCED_OVERLAY_CATEGORIES },
+            oldPackages,
+        )
+    }
+
+    private fun packageNameToSyncedCategory(packageName: String): String? {
+        return SYNCED_OVERLAY_CATEGORIES.firstOrNull { category ->
+            try {
+                val info = context.packageManager.getPackageInfo(packageName, 0)
+                category == info.overlayCategory
+            } catch (_: Exception) {
+                false
+            }
+        }
+    }
+
+    private fun applyAllSyncedOverlays(
+        enableByCategory: Map<String, String>,
+        disablePackages: Set<String>,
+    ) {
         try {
             synchronized(pendingOverlayEnableLock) {
                 pendingOverlayEnable?.let { workerHandler.removeCallbacks(it) }
             }
             val om = context.getSystemService(OverlayManager::class.java) ?: return
-            for (oldPkg in oldPackages) {
+            for (oldPkg in disablePackages) {
                 try {
                     om.setEnabled(oldPkg, false, UserHandle.SYSTEM)
                     Log.d(TAG, "disabled overlay: $oldPkg")
@@ -320,7 +377,7 @@ class ThemeEngineProxy(private val context: Context) {
                     Log.w(TAG, "Failed to disable overlay: $oldPkg", e)
                 }
             }
-            if (packageName == null) {
+            if (enableByCategory.isEmpty()) {
                 synchronized(pendingOverlayEnableLock) {
                     pendingOverlayEnable = null
                 }
@@ -329,10 +386,15 @@ class ThemeEngineProxy(private val context: Context) {
             val enableTask = object : Runnable {
                 override fun run() {
                     try {
-                        om.setEnabledExclusiveInCategory(packageName, UserHandle.SYSTEM)
-                        Log.d(TAG, "enabled overlay: $packageName")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to enable overlay: $packageName", e)
+                        for ((category, pkg) in enableByCategory) {
+                            if (category !in SYNCED_OVERLAY_CATEGORIES) continue
+                            try {
+                                om.setEnabledExclusiveInCategory(pkg, UserHandle.SYSTEM)
+                                Log.d(TAG, "enabled overlay: $pkg ($category)")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to enable overlay: $pkg ($category)", e)
+                            }
+                        }
                     } finally {
                         synchronized(pendingOverlayEnableLock) {
                             if (pendingOverlayEnable === this) {
@@ -347,7 +409,7 @@ class ThemeEngineProxy(private val context: Context) {
             }
             workerHandler.postDelayed(enableTask, 500)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to apply overlays for $packageName", e)
+            Log.e(TAG, "Failed to apply overlays", e)
         }
     }
 
