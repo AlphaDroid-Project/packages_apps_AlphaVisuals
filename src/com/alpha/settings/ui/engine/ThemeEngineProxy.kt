@@ -57,6 +57,7 @@ class ThemeEngineProxy(private val context: Context) {
             "android.theme.customization.signal_icon",
             "android.theme.customization.font",
             "android.theme.customization.lockscreen_clock_font",
+            "android.theme.customization.navbar",
         )
 
         private const val OVERLAY_CATEGORY_WIFI = "android.theme.customization.wifi_icon"
