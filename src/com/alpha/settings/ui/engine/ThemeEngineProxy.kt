@@ -274,9 +274,15 @@ class ThemeEngineProxy(private val context: Context) {
         val saved = saveThemeConfig(updated)
         if (saved) {
             workerHandler.post {
-                applyOverlays(null, setOfNotNull(oldPackage))
+                // Write theme_engine_data + overlay settings BEFORE toggling the overlay.
+                // Disabling an overlay makes SystemUI reload its themed wifi/signal icons from
+                // theme_engine_data; if the data still listed the removed category the status bar
+                // would keep the stale icon until the next overlay event. Sync first, then disable,
+                // then notify so the reload reads the corrected data.
                 syncOverlayPackagesSettings(updated.categoryThemes)
                 syncThemeEngineStatusCategories(updated.categoryThemes)
+                applyOverlays(null, setOfNotNull(oldPackage))
+                notifyThemeChanged()
             }
         }
         return saved
