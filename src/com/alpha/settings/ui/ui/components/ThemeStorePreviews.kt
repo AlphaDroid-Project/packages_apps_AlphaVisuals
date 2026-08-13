@@ -167,7 +167,7 @@ private fun ThemeStoreItemPreviewDetail(
                 modifier = modifier.clip(RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                if (style == "moto" || style == "nothing") {
+                if (style == "moto" || style == "nothing" || style == "supervooc") {
                     ChargingAnimationBannerPreview(
                         packageName = packageName,
                         modifier = Modifier.fillMaxSize(),

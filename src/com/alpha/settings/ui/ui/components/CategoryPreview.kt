@@ -39,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -294,14 +296,113 @@ private val NOTHING_FRAMES = listOf(
     R.drawable.preview_charging_nothing_ripple_41,
 )
 
+@Composable
+private fun SuperVoocChargingPreview(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "svooc_progress")
+    val progress by infiniteTransition.animateFloat(
+        initialValue = 0.08f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2200, easing = LinearEasing)
+        ),
+        label = "svooc_sweep"
+    )
+
+    Box(
+        modifier = modifier.background(Color.Black),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val ring = min(size.width, size.height) * 0.52f
+            val stroke = ring * 0.055f
+            val left = (size.width - ring) / 2f
+            val top = (size.height - ring) / 2f
+            val arcSize = Size(ring, ring)
+
+            drawArc(
+                color = Color(0xFF3A3A3A),
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = Offset(left, top),
+                size = arcSize,
+                style = Stroke(width = stroke, cap = StrokeCap.Round)
+            )
+
+            drawArc(
+                brush = Brush.sweepGradient(
+                    0f to Color(0xFFFF2D7B),
+                    0.55f to Color(0xFF7B5CFF),
+                    1f to Color(0xFF4B7BFF),
+                    center = Offset(size.width / 2f, size.height / 2f),
+                ),
+                startAngle = -90f,
+                sweepAngle = 360f * progress,
+                useCenter = false,
+                topLeft = Offset(left, top),
+                size = arcSize,
+                style = Stroke(width = stroke, cap = StrokeCap.Round)
+            )
+
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+            val watt = "100W"
+            val wattSize = ring * 0.08f
+            val pillW = wattSize * 4.4f
+            val pillH = wattSize * 1.55f
+            val pillTop = cy + ring * 0.28f
+            drawRoundRect(
+                color = Color.White,
+                topLeft = Offset(cx - pillW / 2f, pillTop),
+                size = Size(pillW, pillH),
+                cornerRadius = CornerRadius(pillH * 0.2f, pillH * 0.2f),
+            )
+
+            drawIntoCanvas { canvas ->
+                val wordPaint = Paint().apply {
+                    color = Color.White.toArgb()
+                    textSize = ring * 0.11f
+                    isFakeBoldText = true
+                    isAntiAlias = true
+                    textAlign = Paint.Align.CENTER
+                    letterSpacing = 0.08f
+                }
+                canvas.nativeCanvas.drawText(
+                    "SUPERVOOC",
+                    cx,
+                    cy + wordPaint.textSize * 0.35f,
+                    wordPaint,
+                )
+                val wattPaint = Paint().apply {
+                    color = Color.Black.toArgb()
+                    textSize = wattSize
+                    isFakeBoldText = true
+                    isAntiAlias = true
+                    textAlign = Paint.Align.CENTER
+                }
+                canvas.nativeCanvas.drawText(
+                    watt,
+                    cx,
+                    pillTop + pillH / 2f + wattSize * 0.35f,
+                    wattPaint,
+                )
+            }
+        }
+    }
+}
+
 /**
- * Detail / hero preview: animated Moto or Nothing charging look (bundled assets in AlphaVisuals).
+ * Detail / hero preview: animated Moto, Nothing, or SuperVOOC charging look.
  */
 @Composable
 fun ChargingAnimationBannerPreview(packageName: String, modifier: Modifier = Modifier) {
     val style = packageName.substringAfterLast('.')
     if (style == "moto") {
         MotoChargingPreview(modifier = modifier)
+        return
+    }
+    if (style == "supervooc") {
+        SuperVoocChargingPreview(modifier = modifier)
         return
     }
     if (style != "nothing") return

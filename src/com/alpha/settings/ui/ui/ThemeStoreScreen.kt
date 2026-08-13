@@ -614,6 +614,7 @@ private fun mainListDisplayName(theme: Theme): String {
         val style = pkg.substringAfterLast('.')
         if (style == "moto") return "Moto"
         if (style == "nothing") return "Nothing"
+        if (style == "supervooc") return "SuperVOOC"
     }
     return theme.name
 }
