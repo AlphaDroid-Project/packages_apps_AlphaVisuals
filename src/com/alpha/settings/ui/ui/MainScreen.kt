@@ -38,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -52,12 +53,23 @@ import com.android.internal.util.alpha.Utils
 import com.alpha.settings.ui.ui.UiStylePreviewDetailScreen
 import com.alpha.settings.ui.viewmodel.ThemeStoreViewModel
 
+/** Routes a caller may deep link into through MainActivity.EXTRA_DESTINATION. */
+private val DEEP_LINK_ROUTES = setOf("ui_styles", "monet_settings", "installed_components")
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun MainScreen(viewModel: ThemeStoreViewModel) {
+fun MainScreen(viewModel: ThemeStoreViewModel, destination: String? = null) {
     val navController = rememberNavController()
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
+
+    var deepLinkConsumed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(destination) {
+        if (!deepLinkConsumed && destination != null && DEEP_LINK_ROUTES.contains(destination)) {
+            deepLinkConsumed = true
+            navController.navigate(destination)
+        }
+    }
 
     var showLegacySystemUiRestartDialog by remember { mutableStateOf(false) }
     val deferredThemeOp by viewModel.deferredSystemUiThemeOp.collectAsStateWithLifecycle()

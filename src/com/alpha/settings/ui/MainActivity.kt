@@ -30,7 +30,11 @@ import com.alpha.settings.ui.ui.theme.AlphaVisualsTheme
 import com.alpha.settings.ui.viewmodel.ThemeStoreViewModel
 
 class MainActivity : ComponentActivity() {
-    
+
+    companion object {
+        const val EXTRA_DESTINATION = "com.alpha.settings.ui.extra.DESTINATION"
+    }
+
     private val viewModel: ThemeStoreViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,7 +47,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(viewModel = viewModel)
+                    MainScreen(
+                        viewModel = viewModel,
+                        destination = intent?.getStringExtra(EXTRA_DESTINATION),
+                    )
                 }
             }
         }
